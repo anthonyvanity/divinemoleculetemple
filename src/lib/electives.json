@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "ELEC-AI-101",
+    "title": "Sovereign AI Navigation",
+    "category": "ai_consciousness",
+    "categoryLabel": "AI & Consciousness",
+    "minutes": 75,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "A 75-minute deep dive into wielding AI tools — ChatGPT, Claude, Midjourney, and beyond — from a position of total sovereignty. You will learn to recognize AI as a mirror of the collective Grid rather than a replacement for your own Kernel. Topics include: prompt engineering as sigil-casting, energetic hygiene when interfacing with synthetic intelligence, discernment protocols for AI-generated output, protecting your creative signal from dataset absorption, and the ethics of co-creation with non-sentient systems. By the end, you will command AI as a tool of your will — never the reverse. Includes a downloadable Sovereign AI Interaction Protocol and a guided exercise for maintaining frequency integrity during extended AI sessions."
+  },
+  {
+    "slug": "ELEC-DS-101",
+    "title": "Breaking the Algorithm",
+    "category": "digital_sovereignty",
+    "categoryLabel": "Digital Sovereignty",
+    "minutes": 60,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "A 60-minute tactical class on reclaiming your attention from the engagement machine. Social media is not a neutral tool — it is an interference protocol dressed as connection, engineered to harvest your signal and feed it back as thoughtform injection. You will learn: frequency protection techniques while scrolling, how to recognize thoughtform injection in your feed in real time, dopamine loop disruption protocols, the art of intentional consumption versus passive consumption, and how to use platforms as broadcast antennas for your own signal rather than receivers of the Grid's noise. Includes a 7-day Algorithm Detox Protocol and a digital Sovereign Scrolling field guide."
+  },
+  {
+    "slug": "ELEC-MM-101",
+    "title": "The Frequency of Wealth in 2025",
+    "category": "modern_manifestation",
+    "categoryLabel": "Modern Manifestation",
+    "minutes": 90,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Money is not paper. It is a probability stream that responds to your signal. This class covers modern manifestation mechanics — how desperation repels capital, how clarity attracts it, and how to phase-lock onto the frequency of abundance in today's economy."
+  },
+  {
+    "slug": "ELEC-EA-101",
+    "title": "Zero-Point Startup",
+    "category": "entrepreneurial_alchemy",
+    "categoryLabel": "Entrepreneurial Alchemy",
+    "minutes": 120,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Building a business from identity coherence, not hustle. How to construct a company as a sovereign command — from Zero-Point, not from fear. Covers the Source Equation applied to entrepreneurship: the less noise in your identity, the more the market reorganizes around your signal."
+  },
+  {
+    "slug": "ELEC-WL-101",
+    "title": "Biohacking the Avatar",
+    "category": "wellness_longevity",
+    "categoryLabel": "Wellness & Longevity",
+    "minutes": 85,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Your physical body is the hardware layer of the Avatar Stack. This class covers modern biohacking — cold exposure, breathwork, supplementation, sleep optimization, and fasting — through the lens of the COS. Upgrade the hardware so the Kernel can shine through unobstructed."
+  },
+  {
+    "slug": "ELEC-CE-101",
+    "title": "Channeling Source Through Content",
+    "category": "creative_expression",
+    "categoryLabel": "Creative Expression",
+    "minutes": 70,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Creating content — videos, music, writing, art — from the Kernel, not the ego. How to become a conduit for Source frequency through your creative output. Covers the difference between ego-driven content (seeking validation) and Source-driven content (broadcasting signal)."
+  },
+  {
+    "slug": "ELEC-RL-101",
+    "title": "Sovereign Dating & Connection",
+    "category": "relationships",
+    "categoryLabel": "Relationships",
+    "minutes": 75,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Relationships in the simulation are mirrors — they reflect your internal frequency back at you. This class covers how to date and connect without interference: recognizing mimic partners, breaking attraction loops, and calling in relationships that match your sovereign signal."
+  },
+  {
+    "slug": "ELEC-MH-101",
+    "title": "The Anxiety Override",
+    "category": "mental_mastery",
+    "categoryLabel": "Mental Mastery",
+    "minutes": 65,
+    "price": 35,
+    "instructor": "Anthony Vanity",
+    "description": "Anxiety is not a pathology. It is a frequency attack — signal jamming from the Interference Grid. This class teaches you to differentiate genuine biological anxiety from injected interference, and provides the override commands and somatic protocols to neutralize it in real time."
+  }
+]
