@@ -48,11 +48,11 @@ export const ACADEMY_FAQ = [
   },
   {
     q: "How do I access the curriculum?",
-    a: "The seven-day awakening, FM-101, and SD-101 are open. The Academy is $33 a month and opens the whole syllabus. You do not have to join the religion to enroll. One class, if you only want one, is $10.",
+    a: "The seven-day awakening and the foundation lecture are open to read. You do not have to join the religion to enroll. The bill for the full school is at the end of the syllabus. One elective, if you only want one class, is on the Classes page.",
   },
   {
     q: "What is the difference between the Academy and the Electives?",
-    a: "The Academy is the Scholarship, billed monthly. Classes are the electives, sold one at a time from $35. An elective does not open the syllabus.",
+    a: "The Academy is the degree: Bachelor, Master’s, Doctorate, and the Book of the Priest. Electives are single classes from the same program. An elective does not open the syllabus and does not ordain.",
   },
 ] as const;
 

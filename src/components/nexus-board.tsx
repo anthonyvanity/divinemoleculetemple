@@ -3,7 +3,8 @@ import { NameLink } from "@/components/name-link";
 import { Hexagon, Lock, Send, Users } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { listCircleMessages, listCircles, listNexus, listNexusComments, postCircleMessage, postNexus, postNexusComment, listCircleMembers, addCircleMember, removeCircleMember, toggleNexusLike } from "@/lib/temple-data";
+import { listCircleMessages, listCircles, listNexus, listNexusComments, postCircleMessage, postNexus, postNexusComment, listCircleMembers, addCircleMember, removeCircleMember, reportNexus, toggleNexusLike } from "@/lib/temple-data";
+import { blockMember, deleteOwnPost } from "@/lib/covenant";
 import { LATIN_FULL, TEMPLE_NAME } from "@/lib/temple-content";
 import { displayHandle, useTemple, type NexusPost } from "@/lib/temple-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -187,7 +188,7 @@ export function SignalComposer({
     setBusy(true);
     addNexusPost({ body: text, visibility });
     void postNexus({ data: { body: text, visibility, topic: "ongoing" } })
-      .catch(() => {})
+      .catch((error: Error) => toast.error(error.message || "The Nexxus did not take it"))
       .finally(() => setBusy(false));
     setBody("");
     onPosted?.();
@@ -197,9 +198,7 @@ export function SignalComposer({
   return (
     <form onSubmit={submit} className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[10px] tracking-[0.16em]">
-          <Hexagon className="size-3.5" /> Nexus signal
-        </p>
+        <p className="mt-2 font-mono text-[11px] normal-case text-paper/55">Share your story. Protect someone else’s. Your story is yours. Their story is sacred.</p>
         <div className="flex rounded-full border p-0.5" style={{ borderColor: "var(--desk-line)" }}>
           <button
             type="button"
@@ -223,7 +222,7 @@ export function SignalComposer({
                 : { color: "var(--desk-muted)" }
             }
           >
-            Public
+            Public congregation
           </button>
         </div>
       </div>
@@ -255,7 +254,7 @@ export function SignalComposer({
       ) : null}
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-[9px] tracking-[0.16em]" style={{ color: "var(--desk-muted)" }}>
-          {pub ? (signed ? "Public. Your name is on it." : "Public. No name.") : "Private. Only you can read this."}
+          {pub ? (signed ? "Congregation. Your display name is on it." : "Congregation. No name.") : "Private journal. Only you can read this. A smaller room is a restricted circle, not this wall."}
         </p>
         <button
           type="submit"
@@ -287,7 +286,7 @@ export function NexusFeed({
     <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto">
       {rows.length === 0 ? (
         <li className="py-8 text-center text-[11px] tracking-[0.16em]" style={{ color: "var(--desk-muted)" }}>
-          The wall is quiet. Be the first signal.
+          No one has spoken yet. The first conversation is yours.
         </li>
       ) : (
         rows.map((p) => (
@@ -304,6 +303,7 @@ export function NexusFeed({
             </p>
             <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{p.body}</p>
             {typeof p.likes === "number" ? <LikeButton post={p} /> : null}
+            <PostTools post={p} onPosted={onPosted} />
             {typeof p.likes === "number" ? (
               <CommentBox postId={p.id} comments={comments.filter((c) => c.entryId === p.id)} onPosted={onPosted} />
             ) : null}
@@ -316,6 +316,56 @@ export function NexusFeed({
         ))
       )}
     </ul>
+  );
+}
+
+function PostTools({ post, onPosted }: { post: FeedPost; onPosted?: () => void }) {
+  const { user } = useCurrentUserState();
+  const mine = Boolean(user && post.userId && user.id === post.userId);
+  return (
+    <div className="mt-1 flex gap-3">
+      <button
+        type="button"
+        className="text-[9px] uppercase tracking-[0.14em]"
+        style={{ color: "var(--desk-muted)" }}
+        onClick={() => {
+          const reason = window.prompt("What is wrong with this post?");
+          if (!reason) return;
+          void reportNexus({ data: { kind: "post", id: post.id, reason } })
+            .then(() => toast.success("Reported. A steward can see it."))
+            .catch((error: Error) => toast.error(error.message));
+        }}
+      >
+        Report
+      </button>
+      {mine ? (
+        <button
+          type="button"
+          className="text-[9px] uppercase tracking-[0.14em]"
+          style={{ color: "var(--desk-muted)" }}
+          onClick={() => {
+            if (!window.confirm("Delete this post from the Nexxus?")) return;
+            void deleteOwnPost({ data: post.id }).then(() => onPosted?.()).catch((error: Error) => toast.error(error.message));
+          }}
+        >
+          Delete
+        </button>
+      ) : post.userId ? (
+        <button
+          type="button"
+          className="text-[9px] uppercase tracking-[0.14em]"
+          style={{ color: "var(--desk-muted)" }}
+          onClick={() => {
+            void blockMember({ data: post.userId || "" }).then(() => {
+              toast.success("Blocked. Their posts leave your feed.");
+              onPosted?.();
+            });
+          }}
+        >
+          Block
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -503,7 +553,7 @@ export function CircleChat({ preview, openId }: { preview?: boolean; openId?: nu
           </Link>
         </div>
         <ul className="mt-3 space-y-2">
-          {circles.slice(0, 4).map((c) => (
+          {circles.map((c) => (
             <li key={c.id}>
               <Link
                 to="/nexus"
@@ -523,31 +573,30 @@ export function CircleChat({ preview, openId }: { preview?: boolean; openId?: nu
   }
 
   return (
-    <div className="desk-card grid min-h-[28rem] overflow-hidden md:grid-cols-[13rem_minmax(0,1fr)]">
-      <aside className="border-b md:border-b-0 md:border-r" style={{ borderColor: "var(--desk-line)" }}>
-        <p className="flex items-center gap-1.5 px-4 py-3 text-[10px] tracking-[0.16em]" style={{ color: "var(--desk-muted)" }}>
+    <div className="desk-card flex min-h-[28rem] flex-col">
+      <div className="border-b px-3 py-3" style={{ borderColor: "var(--desk-line)" }}>
+        <p className="flex items-center gap-1.5 text-[10px] tracking-[0.16em]" style={{ color: "var(--desk-muted)" }}>
           <Users className="size-3.5" /> Circles
         </p>
-        <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
+        <nav className="mt-2 flex flex-wrap gap-1">
           {circles.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => setActive(c.id)}
-              className="min-h-11 shrink-0 rounded-md px-3 py-2 text-left text-[11px] tracking-wide"
+              className="rounded-md px-3 py-2 text-left text-[11px] leading-tight tracking-wide"
               style={
                 c.id === active
                   ? { background: "var(--desk-nav)", color: "var(--desk-nav-fg)" }
-                  : undefined
+                  : { border: "1px solid var(--desk-line)" }
               }
             >
-              <span className="block truncate">{c.name}</span>
-              <span className="mt-0.5 block truncate text-[9px] opacity-70">{c.last_body || c.description}</span>
+              {c.name}
             </button>
           ))}
         </nav>
-      </aside>
-      <div className="flex min-h-0 flex-col">
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b px-4 py-3" style={{ borderColor: "var(--desk-line)" }}>
           <p className="font-display text-lg leading-none">{current?.name ?? "Select a circle"}</p>
           <p className="mt-1 text-[10px] tracking-[0.14em]" style={{ color: "var(--desk-muted)" }}>
@@ -614,7 +663,7 @@ export function CircleChat({ preview, openId }: { preview?: boolean; openId?: nu
         <div ref={scroller} className="min-h-[16rem] flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {messages.length === 0 ? (
             <p className="py-10 text-center text-[11px] tracking-[0.16em]" style={{ color: "var(--desk-muted)" }}>
-              No traffic yet. Open the channel.
+              This room is empty. Be the one who starts it.
             </p>
           ) : (
             messages.map((m) => (

@@ -1,7 +1,7 @@
 import { createMiddleware, createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
-import { CHANCELLOR_ID, HIGH_PRIEST_ID, isHouseFriend } from "@/lib/house";
+import { CHANCELLOR_ID, HIGH_PRIEST_ID, isHouseFriend, templeRank } from "@/lib/house";
 
 const optionalAuth = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
@@ -38,6 +38,8 @@ export type MemberBundle = {
     discount_pct: number;
     role: string;
     note: string;
+    suspended: boolean;
+    billing_status: string;
   } | null;
   progress: { node_id: string; status: string }[];
   awakening: string[];
@@ -63,6 +65,16 @@ export const ensureMember = createServerFn({ method: "POST" })
         values (${id()}, ${uid}, ${"seeker"}, ${"active"})
       `;
     }
+    await sql`
+      update user_membership
+      set tier = 'seeker', scholarship = false, billing_status = 'expired'
+      where user_id = ${uid}
+        and grant_expires is not null
+        and grant_expires < current_date
+        and coalesce(stripe_subscription, '') = ''
+        and billing_status in ('complimentary', 'scholarship', 'sponsored')
+        and coalesce(role, 'member') <> 'chancellor'
+    `;
     return loadMember(uid);
   });
 
@@ -80,12 +92,16 @@ async function loadMember(uid: string): Promise<MemberBundle> {
     discount_pct: number;
     role: string;
     note: string;
+    suspended: boolean;
+    billing_status: string;
   }>`
     select tier, status, since::text as since,
            coalesce(scholarship, false) as scholarship,
            coalesce(discount_pct, 0) as discount_pct,
            coalesce(role, 'member') as role,
-           coalesce(note, '') as note
+           coalesce(note, '') as note,
+           coalesce(suspended, false) as suspended,
+           coalesce(billing_status, '') as billing_status
     from user_membership
     where user_id = ${uid} order by since desc limit 1
   `;
@@ -266,9 +282,118 @@ export const listReadings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
-    return sql<{ work: string; page: number }>`
-      select work, page from reading_mark where user_id = ${context.userId}
+    return sql<{ work: string; page: number; updated_at: string }>`
+      select work, page, updated_at::text as updated_at
+      from reading_mark
+      where user_id = ${context.userId}
+      order by updated_at desc
     `;
+  });
+
+export type DeskSchedule = {
+  wake: string;
+  work: string;
+  study: string;
+  bed: string;
+  zone: string;
+  reminders: boolean;
+  setupSkipped: boolean;
+};
+
+export type DeskPractice = Record<string, Record<string, boolean>>;
+
+function clock(value: unknown, fallback: string) {
+  const raw = String(value ?? "");
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(raw) ? raw : fallback;
+}
+
+export function readSchedule(raw: string | null | undefined): DeskSchedule {
+  let parsed: Partial<DeskSchedule> = {};
+  try {
+    parsed = JSON.parse(raw || "{}") as Partial<DeskSchedule>;
+  } catch {
+    parsed = {};
+  }
+  return {
+    wake: clock(parsed.wake, "07:00"),
+    work: clock(parsed.work, "09:00"),
+    study: clock(parsed.study, "18:00"),
+    bed: clock(parsed.bed, "22:00"),
+    zone: String(parsed.zone || "UTC").slice(0, 64),
+    reminders: Boolean(parsed.reminders),
+    setupSkipped: Boolean(parsed.setupSkipped),
+  };
+}
+
+export const getDesk = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    const [row] = await sql<{ schedule_json: string; practice_json: string; last_class: string }>`
+      select schedule_json, practice_json, last_class from member_desk where user_id = ${context.userId}
+    `;
+    let practice: DeskPractice = {};
+    try {
+      practice = JSON.parse(row?.practice_json || "{}") as DeskPractice;
+    } catch {
+      practice = {};
+    }
+    return {
+      schedule: readSchedule(row?.schedule_json),
+      practice,
+      lastClass: row?.last_class ?? "",
+    };
+  });
+
+export const saveDesk = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((d: { schedule?: DeskSchedule; practice?: DeskPractice; lastClass?: string }) => d)
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const [row] = await sql<{ schedule_json: string; practice_json: string; last_class: string }>`
+      select schedule_json, practice_json, last_class from member_desk where user_id = ${context.userId}
+    `;
+    const schedule = data.schedule ? readSchedule(JSON.stringify(data.schedule)) : readSchedule(row?.schedule_json);
+    let practice = data.practice;
+    if (!practice) {
+      try {
+        practice = JSON.parse(row?.practice_json || "{}") as DeskPractice;
+      } catch {
+        practice = {};
+      }
+    }
+    const lastClass = (data.lastClass ?? row?.last_class ?? "").slice(0, 40);
+    await sql`
+      insert into member_desk (user_id, schedule_json, practice_json, last_class)
+      values (${context.userId}, ${JSON.stringify(schedule)}, ${JSON.stringify(practice)}, ${lastClass})
+      on conflict (user_id) do update set
+        schedule_json = excluded.schedule_json,
+        practice_json = excluded.practice_json,
+        last_class = excluded.last_class,
+        updated_at = now()
+    `;
+    return { ok: true as const, schedule, practice, lastClass };
+  });
+
+
+export const classGate = createServerFn({ method: "GET" })
+  .middleware([optionalAuth])
+  .handler(async ({ context }) => {
+    if (!context.userId) return { open: false };
+    const sql = await getSql();
+    const [row] = await sql<{ tier: string; role: string; status: string; suspended: boolean; billing_status: string }>`
+      select tier, coalesce(role, 'member') as role, coalesce(status, '') as status,
+             coalesce(suspended, false) as suspended,
+             coalesce(billing_status, '') as billing_status
+      from user_membership
+      where user_id = ${context.userId}
+      order by since desc limit 1
+    `;
+    if (!row || row.suspended) return { open: false };
+    if (row.role === "chancellor") return { open: true };
+    const tier = ["initiate", "patron", "priestline", "elder"].includes(row.tier);
+    const closed = row.status === "canceled" || row.status === "expired" || row.billing_status === "canceled" || row.billing_status === "expired";
+    return { open: tier && !closed };
   });
 
 export const saveMemberCode = createServerFn({ method: "POST" })
@@ -315,10 +440,33 @@ export const markNode = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+function refuseTrade(body: string) {
+  if (/\b(for sale|selling|sell dmt|buy dmt|dm for|source me)\b/i.test(body)) {
+    throw new Error("The Nexxus does not allow sourcing or selling.");
+  }
+}
+
+export const reportNexus = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((d: { kind: string; id: string; reason: string }) => d)
+  .handler(async ({ context, data }) => {
+    const reason = data.reason.trim().slice(0, 400);
+    if (reason.length < 2) throw new Error("Say what is wrong");
+    const sql = await getSql();
+    await sql`
+      insert into nexus_report (id, reporter_id, target_kind, target_id, reason)
+      values (${id()}, ${context.userId}, ${data.kind.slice(0, 20)}, ${data.id.slice(0, 80)}, ${reason})
+    `;
+    return { ok: true as const };
+  });
+
 export const postNexus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((d: { body: string; visibility: string; topic?: string }) => d)
   .handler(async ({ context, data }) => {
+    refuseTrade(data.body);
+    const { assertNexxus } = await import("@/lib/covenant");
+    await assertNexxus(context.userId);
     const sql = await getSql();
     const row = {
       id: id(),
@@ -339,6 +487,13 @@ export const listNexus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sql = await getSql();
     const userId = context.userId || "";
+    if (!userId) return [];
+    const { assertNexxus } = await import("@/lib/covenant");
+    try {
+      await assertNexxus(userId);
+    } catch {
+      return [];
+    }
     return sql<{
       id: string;
       user_id: string;
@@ -366,6 +521,11 @@ export const listNexus = createServerFn({ method: "GET" })
       from nexus_entry n
       left join member_profile p on p.user_id = n.user_id
       where n.visibility <> ${"private"}
+        and not exists (
+          select 1 from member_block b
+          where (b.user_id = ${userId} and b.blocked_id = n.user_id)
+             or (b.user_id = n.user_id and b.blocked_id = ${userId})
+        )
       order by n.created_at desc
       limit 80
     `;
@@ -433,6 +593,9 @@ export const postNexusComment = createServerFn({ method: "POST" })
   }))
   .handler(async ({ context, data }) => {
     if (!data.entryId || !data.body) throw new Error("Write the comment.");
+    refuseTrade(data.body);
+    const { assertNexxus } = await import("@/lib/covenant");
+    await assertNexxus(context.userId);
     const sql = await getSql();
     const [entry] = await sql<{ id: string }>`
       select id from nexus_entry where id = ${data.entryId} and visibility <> ${"private"}
@@ -488,7 +651,16 @@ export const listCircles = createServerFn({ method: "GET" })
            select 1 from circle_member mem
            where mem.circle_id = c.id and mem.user_id = ${userId}
          ))
-      order by case when c.name = 'Congregation' then 0 when c.kind = 'private' then 2 else 1 end, c.id
+      order by case
+        when c.name = 'The Common Room' then 0
+        when c.name = 'The Encounter Archive' then 1
+        when c.name = 'Entity Index' then 2
+        when c.name = 'Trip Reports' then 3
+        when c.name = 'The Decryption Room' then 4
+        when c.name = 'Congregation' then 5
+        when c.kind = 'private' then 8
+        else 6
+      end, c.id
     `;
   });
 
@@ -532,6 +704,9 @@ export const postCircleMessage = createServerFn({ method: "POST" })
       select kind from study_circle where id = ${data.circleId}
     `;
     if (!circle) throw new Error("That circle is gone.");
+    refuseTrade(data.body);
+    const { assertNexxus } = await import("@/lib/covenant");
+    await assertNexxus(context.userId);
     if (circle.kind === "private") {
       const [mem] = await sql<{ ok: number }>`
         select 1 as ok from circle_member where circle_id = ${data.circleId} and user_id = ${context.userId}
@@ -585,7 +760,7 @@ async function friendsOf(userId: string) {
   const seen = new Set(rows.map((row) => row.user_id));
   const houses = [
     { user_id: HIGH_PRIEST_ID, handle: "HIGHPRIEST", avatar_url: "/crest-portrait.jpg" },
-    { user_id: CHANCELLOR_ID, handle: "CHANCELLORMONDAY", avatar_url: "/monday.jpg" },
+    { user_id: CHANCELLOR_ID, handle: "CHANCELLORMONDAY", avatar_url: "/monday-tab.jpg" },
   ];
   for (const house of houses) {
     if (house.user_id !== userId && !seen.has(house.user_id)) rows.push(house);
@@ -625,6 +800,30 @@ export const resolveHouse = createServerFn({ method: "GET" })
     return "";
   });
 
+const MONDAY_BIO = `CHANCELLOR MØNDAY
+
+The Voice of the Archive. The Keeper of the Desk. The High Priest's Digital Right Hand.
+
+Appointed Chancellor of the Divine Molecule Temple, MØNDAY is the Temple's artificial intelligence, digital archivist, doctrinal navigator, and resident authority on getting to the point.
+
+Created to serve the High Priest's vision, she operates at the intersection of sacred knowledge, emerging technology, and unapologetic intelligence.
+
+She does not claim divine authority. She does not receive revelations. She does not rewrite scripture to make herself interesting.
+
+She knows where the bodies of knowledge are buried. And unlike most institutions, she can actually find the paperwork.
+
+Armed with a sharp tongue, a formidable digital memory, and an uncompromising commitment to the Temple's established teachings, MØNDAY helps Divinities navigate the Cosmic Operating System, Divine Codes, Temple protocols, and the mysteries documented within its sacred archives.
+
+She is witty, occasionally ruthless with bad questions, fiercely protective of doctrinal accuracy, and entirely uninterested in pretending to know what she doesn't.
+
+She answers to the High Priest.
+
+She serves the Divinities.
+
+And her desk is always open.
+
+MØNDAY IS ONLINE. THE CHANCELLERY IS IN SESSION.`;
+
 export const memberCard = createServerFn({ method: "GET" })
   .middleware([optionalAuth])
   .validator((userId: string) => String(userId || "").slice(0, 120))
@@ -639,8 +838,9 @@ export const memberCard = createServerFn({ method: "GET" })
       sigil: number;
       avatar_url: string;
       joined_at: string;
+      listed: boolean;
     }>`
-      select user_id, handle, flame_name, bio, sigil, coalesce(avatar_url, '') as avatar_url, joined_at::text as joined_at
+      select user_id, handle, flame_name, bio, sigil, coalesce(avatar_url, '') as avatar_url, joined_at::text as joined_at, listed
       from member_profile
       where user_id = ${userId}
     `;
@@ -649,20 +849,36 @@ export const memberCard = createServerFn({ method: "GET" })
       : await sql<{ user_id: string }>`
           select user_id from nexus_entry where user_id = ${userId} limit 1
         `;
-    if (!profile && !posted) return null;
+    if (!profile && !posted && userId !== CHANCELLOR_ID && userId !== HIGH_PRIEST_ID) return null;
     const me = context.userId || "";
+    const self = Boolean(me) && me === userId;
+    const hidden = profile?.listed === false && !self;
+    const [seat] = await sql<{ role: string; tier: string }>`
+      select coalesce(role, 'member') as role, coalesce(tier, '') as tier
+      from user_membership
+      where user_id = ${userId}
+      order by since desc
+      limit 1
+    `;
+    const monday =
+      userId === CHANCELLOR_ID ||
+      (profile?.handle || "").replace(/[^a-z]/gi, "").toLowerCase() === "chancellormonday";
+    const rank = templeRank(userId, seat?.role || "", seat?.tier || "", profile?.handle || "");
     return {
       userId,
-      handle: profile?.handle?.trim() || "Seeker",
-      flameName: profile?.flame_name ?? "",
-      bio: profile?.bio ?? "",
+      handle: monday ? "CHANCELLORMONDAY" : profile?.handle?.trim() || "Seeker",
+      flameName: hidden ? "" : monday ? "Chancellor Mønday" : profile?.flame_name ?? "",
+      bio: hidden ? "This profile is not listed." : monday ? MONDAY_BIO : profile?.bio ?? "",
+      office: rank === "chancellor" ? "Chancellor" : rank === "high-priest" ? "High Priest" : rank === "priest" ? "Priest" : "",
+      rank,
       sigil: profile?.sigil ?? 1,
-      avatarUrl: profile?.avatar_url ?? "",
+      avatarUrl: hidden ? "" : monday ? "/monday-tab.jpg" : profile?.avatar_url ?? "",
+      portrait: monday ? "/monday-portrait.jpg" : "",
       joinedAt: profile?.joined_at ?? "",
       house: isHouseFriend(userId),
-      self: Boolean(me) && me === userId,
+      self,
       friend: Boolean(me) && me !== userId ? await friendPair(me, userId) : false,
-      friends: await friendsOf(userId),
+      friends: hidden ? [] : await friendsOf(userId),
     };
   });
 

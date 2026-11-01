@@ -1,86 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, Check, Flame, Hexagon, Home, Library, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { CANONICAL_SEQUENCE, syllabusCourse } from "@/lib/syllabus";
-import { degreeCourse } from "@/lib/degree-catalog";
-import { PHASES, AWAKENING } from "@/lib/temple-content";
-import { ensureMember, listClassNotes } from "@/lib/temple-data";
-import { myLibrary, mySequences } from "@/lib/engine";
-import { openBillingPortal, ownedClassCodes, startStripeCheckout } from "@/lib/stripe-temple";
-import { daysActive, useTemple } from "@/lib/temple-store";
+import { ensureMember, listCircles, postNexus, type StudyCircleRow } from "@/lib/temple-data";
+import { cashAppAmountUrl, PRIMARY_COMMANDS, AWAKENING, LATIN_FULL } from "@/lib/temple-content";
+import { compilePrayer } from "@/lib/compiler";
+import { RITES } from "@/lib/rites";
+import { COS_BOOKS } from "@/lib/cos-shelf";
+import { scholarshipCourse, SCHOLARSHIP_SEQUENCE } from "@/lib/scholarship";
+import { STICKERS } from "@/lib/shop";
+import { useTemple } from "@/lib/temple-store";
 import { FirstTour } from "@/components/first-tour";
-import { SignalComposer } from "@/components/nexus-board";
+import { ChamberIcon } from "@/components/chamber";
+import { useNexusFeed } from "@/components/nexus-board";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard")({ component: DashboardPage });
-
-const STAGES = ["Seeker", "Initiate", "Intermediary", "Elder"] as const;
-
-const NAV = [
-  { to: "/dashboard" as const, label: "Home", icon: Home },
-  { to: "/academy" as const, label: "Academy", icon: BookOpen },
-  { to: "/library" as const, label: "Library", icon: Library },
-  { to: "/nexus" as const, label: "Nexus", icon: Hexagon },
-  { to: "/ceremonies" as const, label: "Rituals", icon: Flame },
-  { to: "/profile" as const, label: "Profile", icon: UserRound },
-];
-
-type Skin = "ink" | "day" | "lime";
-
-const SKIN: Record<
-  Skin,
-  {
-    page: string;
-    rail: string;
-    card: string;
-    muted: string;
-    accent: string;
-    cta: string;
-    navOn: string;
-    ink: string;
-    chart: string;
-    wash: string;
-  }
-> = {
-  ink: {
-    page: "bg-[#070707] text-[#f3f0e6]",
-    rail: "border-[#2c2c26] bg-[#0b0b0b]",
-    card: "border border-[#3a3a32] bg-[#101010]",
-    muted: "text-[#9c978c]",
-    accent: "text-[#c6ff00]",
-    cta: "bg-[#c6ff00] text-[#111]",
-    navOn: "bg-[#c6ff00] text-[#111]",
-    ink: "#c6ff00",
-    chart: "#c6ff00",
-    wash: "from-black/80",
-  },
-  day: {
-    page: "bg-[#f4f1e6] text-[#1a1a16]",
-    rail: "border-[#e0d8c4] bg-[#f7f4ea]",
-    card: "border border-[#e4dcc8] bg-[#fbfaf4]",
-    muted: "text-[#7a7468]",
-    accent: "text-[#6d8f00]",
-    cta: "bg-[#c6ff00] text-[#111]",
-    navOn: "bg-[#c6ff00] text-[#111]",
-    ink: "#6d8f00",
-    chart: "#8fbf00",
-    wash: "from-[#f4f1e6]/85",
-  },
-  lime: {
-    page: "bg-[#d6ff3a] text-[#111]",
-    rail: "border-[#111]/20 bg-[#d6ff3a]",
-    card: "border border-[#111] bg-[#d6ff3a]",
-    muted: "text-[#111]/70",
-    accent: "text-[#111]",
-    cta: "bg-[#111] text-[#d6ff3a]",
-    navOn: "bg-[#111] text-[#d6ff3a]",
-    ink: "#111",
-    chart: "#111",
-    wash: "from-[#d6ff3a]/80",
-  },
-};
 
 function DashboardPage() {
   const { user, isPending } = useCurrentUserState();
@@ -110,7 +45,7 @@ function DashboardPage() {
 
   if (isPending) {
     return (
-      <main className="grid min-h-[40dvh] place-items-center bg-ink text-paper">
+      <main className="grid min-h-[70dvh] place-items-center bg-black text-paper">
         <p className="text-micro tracking-[0.22em] text-lime">Synchronizing session…</p>
       </main>
     );
@@ -119,534 +54,782 @@ function DashboardPage() {
   return <Dashboard />;
 }
 
-function Dashboard() {
-  const path = useTemple((s) => s.path);
-  const read = useTemple((s) => s.read);
-  const rites = useTemple((s) => s.rites);
-  const joinedAt = useTemple((s) => s.joinedAt);
-  const journal = useTemple((s) => s.journal);
-  const classNotes = useTemple((s) => s.classNotes);
-  const sealedDays = useTemple((s) => s.awakening);
-  const awakening = Array.isArray(sealedDays) ? sealedDays : [];
-  const lastClass = useTemple((s) => s.lastClass);
-  const orientationDone = useTemple((s) => s.orientationDone);
-  const role = useTemple((s) => s.role);
-  const { user } = useCurrentUserState();
-  const portrait = useTemple((s) => s.portrait) || user?.profileImageUrl || "/monday.jpg";
-  const rank = path === "none" ? "seeker" : path;
-  const [skin, setSkin] = useState<Skin>("ink");
-  const [clock, setClock] = useState("");
-  const [owned, setOwned] = useState<string[]>([]);
-  const [billingError, setBillingError] = useState("");
-  const [sequences, setSequences] = useState<{ slug: string; title: string; completed: number; total: number }[]>([]);
-  const [kept, setKept] = useState<{ slug: string; title: string }[]>([]);
-  const [serverNotes, setServerNotes] = useState<{ code: string; body: string }[]>([]);
-  const tone = SKIN[skin];
-  const paidGate = path === "initiate" || path === "patron";
-  const phaseIndex = Math.min(
-    PHASES.length - 1,
-    path === "patron" ? 3 : path === "initiate" ? 1 : Math.floor(read.length / 4),
-  );
-  const stage = role === "chancellor" ? 3 : path === "patron" ? 2 : path === "initiate" ? 1 : Math.min(phaseIndex, 3);
-  const nextCode = lastClass || "FM-101";
-  const nextLesson = degreeCourse(nextCode);
-  const next = syllabusCourse(nextCode);
-  const nextTitle = next?.title ?? nextLesson?.course.title ?? "Introduction";
-  const doneCount = CANONICAL_SEQUENCE.filter((c) => read.includes(c)).length;
-  const coursePct = sequences[0]?.total
-    ? Math.round((sequences[0].completed / sequences[0].total) * 100)
-    : Math.round((doneCount / CANONICAL_SEQUENCE.length) * 100);
-  const pathPct = Math.max(coursePct, Math.round((stage / (STAGES.length - 1)) * 100));
-  const journalCount = journal.trim() ? journal.split(/\n+/).filter(Boolean).length : 0;
-  const notes = noteList(classNotes, serverNotes);
+function remain(at: string, now: Date) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(at.trim());
+  if (!match) return null;
+  const target = new Date(now);
+  target.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+  return target.getTime() - now.getTime();
+}
 
-  useEffect(() => {
-    void listClassNotes()
-      .then(setServerNotes)
-      .catch(() => {});
-    void mySequences()
-      .then(setSequences)
-      .catch(() => setSequences([]));
-    void myLibrary()
-      .then((lib) => {
-        const seen = new Set<string>();
-        const rows = [...lib.recent, ...lib.saved].filter((row) => {
-          if (seen.has(row.slug)) return false;
-          seen.add(row.slug);
-          return true;
-        });
-        setKept(rows.slice(0, 4).map((row) => ({ slug: row.slug, title: row.title })));
-      })
-      .catch(() => setKept([]));
-  }, []);
+function stamp(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  const parts = [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60), seconds % 60];
+  return parts.map((n) => String(n).padStart(2, "0")).join(":");
+}
 
+function NextRiteClock({ schedule }: { schedule: { wake: string; study: string; bed: string } }) {
+  const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    if (paidGate) return;
-    void ownedClassCodes().then(setOwned).catch(() => {});
-  }, [paidGate]);
-
-  useEffect(() => {
-    const tick = () =>
-      setClock(
-        new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      );
-    tick();
-    const id = window.setInterval(tick, 1000);
+    const id = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(id);
   }, []);
+  const next = [
+    { at: schedule.wake, label: "wake" },
+    { at: schedule.study, label: "study" },
+    { at: schedule.bed, label: "rest" },
+  ]
+    .map((item) => ({ ...item, ms: remain(item.at, now) }))
+    .filter((item): item is { at: string; label: string; ms: number } => item.ms != null)
+    .sort((a, b) => a.ms - b.ms)[0];
+  return <UntilClock at={next?.at ?? schedule.wake} label={next ? `Until ${next.label}` : "Until next rite"} />;
+}
 
-  const protocol = [
-    { n: "01", label: "Ground", done: orientationDone },
-    { n: "02", label: "Study", done: read.length > 0 },
-    { n: "03", label: "Integrate", done: rites.length > 0 },
-  ];
-  const awakeningDone = AWAKENING.filter((day) => awakening.includes(day.id)).length;
-  const awakeningPct = Math.round((awakeningDone / AWAKENING.length) * 100);
-
+function UntilClock({ at, label }: { at: string; label: string }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const ms = remain(at, now);
+  const hand = ms == null ? 0 : ((60 - Math.floor((ms / 1000) % 60)) % 60) * 6;
   return (
-    <main className={cn("relative min-h-[70dvh]", tone.page)}>
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.18]"
-        style={{ backgroundImage: "url(/desk-board.jpg)" }}
-      />
-      <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-b to-transparent", tone.wash)} />
-      <div className="relative lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className={cn("hidden border-r px-4 py-6 lg:flex lg:flex-col", tone.rail)}>
-          <img src="/flame-gold.webp" alt="" className="h-14 w-14 object-contain" />
-          <p className="mt-4 font-sans text-[15px] font-semibold leading-tight tracking-wide">
-            Divine
-            <br />
-            Molecule
-            <br />
-            Temple
-          </p>
-          <p className={cn("mt-3 text-[9px] leading-relaxed tracking-[0.14em]", tone.muted)}>
-            Sacred science.
-            <br />
-            Higher consciousness.
-            <br />
-            Service to all.
-          </p>
-          <nav className="mt-8 space-y-1">
-            {NAV.map((item) => {
-              const Icon = item.icon;
-              const on = item.to === "/dashboard";
-              return (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 text-[11px] tracking-[0.16em]",
-                    on ? tone.navOn : tone.muted,
-                  )}
-                >
-                  <Icon className="size-4" strokeWidth={1.75} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <p className={cn("mt-auto flex items-center gap-2 pt-10 text-[10px] tracking-[0.16em]", tone.accent)}>
-            <span className="size-2 rounded-full bg-current" />
-            System: active
-          </p>
-        </aside>
-
-        <div className="px-3 py-4 sm:px-5 sm:py-6">
-          <header className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="font-sans text-[15px] font-semibold tracking-[0.18em] sm:text-lg">Welcome back, {rank}</h1>
-              <p className={cn("mt-1 text-[10px] tracking-[0.18em]", tone.muted)}>
-                Clearance // <span className={tone.accent}>Member</span>
-                {role === "chancellor" ? (
-                  <Link to="/chancellor" className="ml-3 underline">
-                    Office
-                  </Link>
-                ) : null}
-                {paidGate ? (
-                  <button
-                    type="button"
-                    className="ml-3 underline"
-                    onClick={() => {
-                      setBillingError("");
-                      void openBillingPortal({ data: window.location.origin })
-                        .then((session) => window.location.assign(session.url))
-                        .catch((error: Error) => setBillingError(error.message || "The portal did not open"));
-                    }}
-                  >
-                    Billing
-                  </button>
-                ) : null}
-              </p>
-              {billingError ? <p className="mt-1 text-[10px] text-orange">{billingError}</p> : null}
-              <div className="mt-4 max-w-xl">
-                <div className={cn("mb-1 flex items-center justify-between text-[10px] tracking-[0.16em]", tone.muted)}>
-                  <span>Progress</span>
-                  <span>{coursePct}%</span>
-                </div>
-                <div
-                  className="h-2 w-full bg-current/10"
-                  role="progressbar"
-                  aria-valuenow={coursePct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Course progress"
-                >
-                  <div className="h-full" style={{ width: `${coursePct}%`, background: tone.chart }} />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex overflow-hidden border border-current/20">
-                {(["ink", "day", "lime"] as const).map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-label={`${id} desk`}
-                    onClick={() => setSkin(id)}
-                    className={cn("size-6", id === "ink" && "bg-[#111]", id === "day" && "bg-[#f4f1e6]", id === "lime" && "bg-[#d6ff3a]", skin === id && "ring-1 ring-inset ring-current")}
-                  />
-                ))}
-              </div>
-              <Link
-                to="/profile"
-                aria-label="Open profile"
-                className={cn("grid size-11 place-items-center overflow-hidden rounded-full border", tone.card)}
-              >
-                <img src={portrait} alt="" className="size-full object-cover" />
-              </Link>
-            </div>
-          </header>
-
-          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.8fr)]">
-            <article className={cn("p-4 sm:p-5", tone.card)}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-[10px] tracking-[0.18em]", tone.muted)}>Current path</p>
-                <Hexagon className={cn("size-5", tone.muted)} strokeWidth={1.25} />
-              </div>
-              <h2 className="mt-3 max-w-md font-sans text-[1.7rem] font-semibold leading-[0.95] tracking-tight sm:text-4xl">
-                Scholarship of the Enlightened
-              </h2>
-              <PathChart stage={stage} color={tone.chart} />
-              <div className="mt-2 flex items-end justify-between text-[10px] tracking-[0.14em]">
-                <p className={tone.muted}>
-                  Stage {stage + 1} of 4 // <span className={tone.accent}>{STAGES[stage]}</span>
-                </p>
-                <p className={tone.muted}>{pathPct}% complete</p>
-              </div>
-            </article>
-
-            <div className="grid grid-cols-3 gap-3 xl:grid-cols-1">
-              <Stat card={tone.card} muted={tone.muted} accent={tone.accent} k="Course progress" v={`${coursePct}%`} note="Overall completion" />
-              <Stat card={tone.card} muted={tone.muted} accent={tone.accent} k="Library" v={String(kept.length).padStart(2, "0")} note="Texts unlocked" />
-              <Stat card={tone.card} muted={tone.muted} accent={tone.accent} k="Journal" v={String(journalCount).padStart(2, "0")} note="Entries recorded" />
-            </div>
-          </div>
-
-          <article className={cn("mt-3 p-4 sm:p-5", tone.card)}>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] tracking-[0.16em]">Continue study</p>
-              <Link to="/academy" className={tone.muted} aria-label="Academy">
-                ›
-              </Link>
-            </div>
-            <p className={cn("mt-3 text-[10px] tracking-[0.16em]", tone.muted)}>
-              {paidGate ? "Academy · Full access" : "Seeker · Free path"}
-            </p>
-            <p className="mt-1 font-sans text-lg font-semibold leading-tight tracking-wide sm:text-xl">
-              {nextCode} // {nextTitle}
-            </p>
-            <div className="mt-3 h-2 w-full bg-current/10">
-              <div className="h-full" style={{ width: `${Math.max(coursePct, 8)}%`, background: tone.chart }} />
-            </div>
-            <div className="mt-1 text-right text-[10px] tracking-wide">{coursePct}%</div>
-            {!paidGate ? (
-              <p className={cn("mt-2 text-[10px] tracking-[0.12em]", tone.accent)}>
-                The Academy is $33 a month and opens every class. Four single classes cost more.
-              </p>
-            ) : null}
-            {paidGate || next?.free || owned.some((code) => code.toUpperCase() === nextCode.toUpperCase()) ? (
-              <div className="mt-3 grid gap-2">
-                <a href={`/academy/${nextCode}`} className={cn("flex h-9 items-center justify-center gap-2 px-2 text-center text-[10px] leading-tight tracking-[0.08em]", paidGate ? tone.cta : "border border-current")}>
-                  Continue <span aria-hidden>›</span>
-                </a>
-                {!paidGate ? (
-                  <button
-                    type="button"
-                    className={cn("h-9 px-2 text-[10px] leading-tight tracking-[0.08em]", tone.cta)}
-                    onClick={() => {
-                      void startStripeCheckout({
-                        data: { kind: "membership", tier: "initiate", label: "Academy", origin: window.location.origin },
-                      })
-                        .then((r) => {
-                          window.location.href = r.url;
-                        })
-                        .catch(() => {
-                          window.location.href = "/gates";
-                        });
-                    }}
-                  >
-                    Academy · $33/mo
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  className={cn("h-9 px-2 text-[10px] leading-tight tracking-[0.08em]", tone.cta)}
-                  onClick={() => {
-                    void startStripeCheckout({
-                      data: { kind: "membership", tier: "initiate", label: "Academy", origin: window.location.origin },
-                    })
-                      .then((r) => {
-                        window.location.href = r.url;
-                      })
-                      .catch(() => {
-                        window.location.href = "/gates";
-                      });
-                  }}
-                >
-                  Academy · $33/mo
-                </button>
-                <button
-                  type="button"
-                  className="h-9 border border-current px-2 text-[10px] leading-tight tracking-[0.08em]"
-                  onClick={() => {
-                    void startStripeCheckout({
-                      data: { kind: "elective", amount: 10, code: nextCode, label: `${nextCode} ${nextTitle}`, origin: window.location.origin },
-                    })
-                      .then((r) => {
-                        window.location.href = r.url;
-                      })
-                      .catch(() => {
-                        window.location.href = "/academy";
-                      });
-                  }}
-                >
-                  This class · $10
-                </button>
-              </div>
-            )}
-            <p className={cn("mt-3 text-[10px] tracking-[0.12em]", tone.muted)}>
-              Congregation: ten quiet minutes a day, then one true sentence in the <Link to="/nexus" className="underline">Nexus</Link>.
-            </p>
-          </article>
-
-          <article className="desk-night mt-3 border border-lime/30 p-4 text-paper">
-            <SignalComposer compact />
-          </article>
-
-          <article className={cn("mt-3 p-4 sm:p-5", tone.card)}>
-            <p className="text-[11px] tracking-[0.16em]">Class notes</p>
-            {notes.length === 0 ? (
-              <p className={cn("mt-3 text-[12px]", tone.muted)}>Nothing kept yet. Open a class and write under Class notes.</p>
-            ) : (
-              <ul className="mt-3 divide-y divide-current/10">
-                {notes.map((row) => (
-                  <li key={row.code} className="py-3">
-                    <Link to="/academy/$code" params={{ code: row.code }} className="text-[11px] tracking-[0.14em]">
-                      {row.code}
-                      <span className={cn("ml-2", tone.muted)}>{row.title}</span>
-                    </Link>
-                    <p className="mt-1 whitespace-pre-wrap font-mono text-[12px] normal-case leading-relaxed">{row.body}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
-
-          <article className={cn("mt-3 p-4 sm:p-5", tone.card)}>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] tracking-[0.16em]">Awakening</p>
-              <Link to="/awakening" className={cn("text-[10px] tracking-[0.14em]", tone.muted)}>
-                {awakeningDone} / 7
-              </Link>
-            </div>
-            <div className="mt-3 h-2 w-full bg-current/10">
-              <div className="h-full" style={{ width: `${awakeningPct}%`, background: tone.chart }} />
-            </div>
-            <ul className="mt-3 divide-y divide-current/10">
-              {AWAKENING.map((day) => {
-                const done = awakening.includes(day.id);
-                return (
-                  <li key={day.id} className="flex items-center justify-between py-2.5 text-[12px] tracking-[0.12em]">
-                    <span>
-                      Day {day.day} · {day.title}
-                    </span>
-                    <span className={cn("text-[10px]", done ? tone.accent : tone.muted)}>{done ? "Done" : "Open"}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </article>
-
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
-            <article className={cn("p-4", tone.card)}>
-              <div className="flex items-center justify-between text-[10px] tracking-[0.14em]">
-                <p className="flex items-center gap-2">
-                  <Hexagon className="size-3.5" /> Nexus signal
-                </p>
-                <p className={tone.muted}>Private by default</p>
-              </div>
-              <Wave color={tone.chart} />
-              <div className="mt-2 flex items-center justify-between text-[10px] tracking-[0.14em]">
-                <p className={tone.muted}>
-                  Signal strength: <span className={tone.accent}>Stable</span>
-                </p>
-                <p className="flex items-center gap-1">
-                  Live <span className="size-2 rounded-full" style={{ background: tone.chart }} />
-                </p>
-              </div>
-            </article>
-
-            <article className={cn("p-4", tone.card)}>
-              <p className="flex items-center gap-2 text-[10px] tracking-[0.14em]">
-                <span className="size-3 rounded-full border border-current" /> Today's protocol
-              </p>
-              <ul className="mt-3 divide-y divide-current/10">
-                {protocol.map((step) => (
-                  <li key={step.n} className="flex items-center justify-between py-2.5 text-[12px] tracking-[0.12em]">
-                    <span className="flex items-center gap-2">
-                      <span className={cn("grid size-4 place-items-center border", step.done ? tone.cta : "border-current/40")}>
-                        {step.done ? <Check className="size-3" /> : null}
-                      </span>
-                      {step.n} {step.label}
-                    </span>
-                    <span className={cn("text-[10px]", step.done ? tone.accent : tone.muted)}>{step.done ? "Complete" : "Pending"}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className={cn("mt-2 text-[10px] tracking-[0.14em]", tone.muted)}>
-                Protocol status: <span className={tone.accent}>{protocol.every((s) => s.done) ? "Sealed" : "In progress"}</span>
-              </p>
-            </article>
-
-            <article className={cn("p-4", tone.card)}>
-              <div className="flex items-center justify-between text-[10px] tracking-[0.14em]">
-                <p>Recent library</p>
-                <Link to="/library" className={tone.muted}>
-                  View all
-                </Link>
-              </div>
-              <ul className="mt-3 divide-y divide-current/10">
-                {(kept.length ? kept : [{ slug: "", title: "No texts kept yet" }]).map((item) => (
-                  <li key={item.slug || item.title} className="flex items-center justify-between gap-3 py-2.5 text-[11px] leading-tight tracking-[0.06em]">
-                    {item.slug ? (
-                      <Link to="/archive/$slug" params={{ slug: item.slug }} className="min-w-0">
-                        {item.title}
-                      </Link>
-                    ) : (
-                      <span className={tone.muted}>{item.title}</span>
-                    )}
-                    <span className={tone.muted}>›</span>
-                  </li>
-                ))}
-              </ul>
-              {kept.length ? (
-                <p className={cn("mt-2 text-[10px] tracking-[0.14em]", tone.accent)}>{kept.length} on the desk</p>
-              ) : null}
-            </article>
-          </div>
-
-          <footer className={cn("mt-3 flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between", tone.card)}>
-            <div className="flex items-center gap-4">
-              <img src="/hex-seal.webp" alt="" className="size-14 object-contain" />
-              <p className="font-sans text-sm font-semibold leading-tight tracking-[0.12em] sm:text-base">
-                Run light.
-                <br />
-                Terminate darkness.
-                <br />
-                Stay online.
-              </p>
-            </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-[10px] tracking-[0.14em]">
-              <dt className={tone.muted}>Server time:</dt>
-              <dd>{clock || "—"} UTC</dd>
-              <dt className={tone.muted}>Grid:</dt>
-              <dd>DMT-Prime</dd>
-              <dt className={tone.muted}>Node:</dt>
-              <dd className={tone.accent}>Online · {daysActive(joinedAt)} days</dd>
-            </dl>
-          </footer>
-        </div>
-      </div>
-      <FirstTour where="desk" />
-    </main>
+    <div className="mt-auto flex items-center gap-2 pt-2">
+      <span className="relative grid size-9 shrink-0 place-items-center rounded-full border border-current">
+        <span className="absolute bottom-1/2 left-1/2 h-3 w-px origin-bottom bg-current" style={{ transform: `translateX(-50%) rotate(${hand}deg)` }} />
+        <span className="size-1 rounded-full bg-current" />
+      </span>
+      <span>
+        <span className="block font-mono text-[9px] uppercase tracking-[0.12em]">{label}</span>
+        <span className="plate-type font-display text-lg leading-none">{ms == null ? "--:--:--" : stamp(ms)}</span>
+      </span>
+    </div>
   );
 }
 
-function Stat({ card, muted, accent, k, v, note }: { card: string; muted: string; accent: string; k: string; v: string; note: string }) {
+function Tile({
+  id,
+  open,
+  setOpen,
+  tone,
+  icon,
+  title,
+  square,
+  clock,
+  facts,
+  children,
+}: {
+  id: string;
+  open: string | null;
+  setOpen: (id: string | null) => void;
+  tone: string;
+  icon: string;
+  title: string;
+  square?: boolean;
+  clock?: ReactNode;
+  facts?: string[];
+  children: ReactNode;
+}) {
+  const frame =
+    {
+      "bg-orange": "border-orange text-orange",
+      "bg-lime": "border-lime text-lime",
+      "bg-cyan": "border-cyan text-cyan",
+      "bg-lilac": "border-lilac text-lilac",
+      "bg-pink": "border-pink text-pink",
+      "bg-canary": "border-canary text-canary",
+      "bg-paper": "border-paper text-paper",
+      "bg-ink text-lime": "border-lime text-lime",
+    }[tone] ?? "border-lime text-lime";
+  const shown = open === id;
   return (
-    <article className={cn("p-3 sm:p-4", card)}>
-      <p className={cn("text-[9px] tracking-[0.14em] sm:text-[10px]", muted)}>{k}</p>
-      <p className={cn("mt-2 font-sans text-3xl font-semibold leading-none sm:text-4xl", accent)}>{v}</p>
-      <p className={cn("mt-2 text-[9px] tracking-[0.12em]", muted)}>{note}</p>
-    </article>
-  );
-}
-
-function noteList(
-  local: Record<string, { body?: string }[] | undefined> | undefined,
-  server: { code: string; body: string }[],
-) {
-  const map = new Map<string, string>();
-  for (const [code, list] of Object.entries(local ?? {})) {
-    const body = list?.[0]?.body?.trim() ?? "";
-    if (body) map.set(code.toUpperCase(), body);
-  }
-  for (const row of server) {
-    const body = row.body.trim();
-    if (body) map.set(row.code.toUpperCase(), body);
-  }
-  return [...map.entries()].map(([code, body]) => ({
-    code,
-    title: syllabusCourse(code)?.title ?? "",
-    body,
-  }));
-}
-
-function PathChart({ stage, color }: { stage: number; color: string }) {
-  const pts = [
-    [28, 108],
-    [118, 78],
-    [210, 52],
-    [300, 22],
-  ];
-  const line = pts
-    .slice(0, stage + 1)
-    .map((p, i) => `${i ? "L" : "M"}${p[0]} ${p[1]}`)
-    .join(" ");
-  const area = `${line} L${pts[stage][0]} 128 L${pts[0][0]} 128 Z`;
-  return (
-    <div className="mt-4">
-      <svg viewBox="0 0 330 140" className="h-36 w-full" role="img" aria-label="Path from seeker to elder">
-        <path d={area} fill={color} opacity="0.18" />
-        <path d={line} fill="none" stroke={color} strokeWidth="2.5" />
-        {pts.map((p, i) => (
-          <g key={STAGES[i]}>
-            <circle cx={p[0]} cy={p[1]} r={i === stage ? 6 : 4} fill={i <= stage ? color : "transparent"} stroke={color} strokeWidth="1.5" />
-          </g>
-        ))}
-      </svg>
-      <div className="grid grid-cols-4 text-center text-[8px] tracking-[0.12em] sm:text-[10px]">
-        {STAGES.map((label, i) => (
-          <span key={label} style={{ color: i === stage ? color : undefined }} className={i === stage ? "" : "opacity-60"}>
-            {label}
+    <section className={cn("desk-plate flex flex-col border-2", frame, shown ? "col-span-2" : square ? "aspect-square" : "col-span-2")}>
+      <button
+        type="button"
+        aria-expanded={shown}
+        onClick={() => setOpen(shown ? null : id)}
+        className={cn("flex w-full flex-1 flex-col items-start p-3 text-left text-inherit", !shown && !square && "min-h-16")}
+      >
+        <span className="flex w-full items-center gap-2">
+          <ChamberIcon name={icon} className="size-4 shrink-0" />
+          <span className="plate-type font-display text-[clamp(1.05rem,4.4vw,1.65rem)] uppercase leading-[0.85]">{title}</span>
+          <span
+            aria-hidden
+            className={cn("ml-auto inline-block size-1.5 shrink-0 border-r border-b border-current", shown ? "rotate-[225deg]" : "rotate-45")}
+          />
+        </span>
+        {!shown && facts?.length ? (
+          <span className="mt-2 space-y-1 pr-6">
+            {facts.map((line) => (
+              <span key={line} className="block font-mono text-[10px] uppercase leading-snug tracking-[0.06em]">
+                {line}
+              </span>
+            ))}
           </span>
-        ))}
+        ) : null}
+        {!shown ? clock : null}
+      </button>
+      {shown ? <div className="desk-open relative z-[1] border-t border-current/30 px-3 pb-4">{children}</div> : null}
+    </section>
+  );
+}
+const PIECE_TONE: Record<string, string> = {
+  scholarship: "orange",
+  academy: "orange",
+  protocol: "lime",
+  rites: "lime",
+  codes: "lime",
+  reading: "cyan",
+  study: "cyan",
+  cos: "lilac",
+  nexus: "pink",
+  give: "canary",
+  shop: "paper",
+  tx: "lime",
+};
+
+type DeskMove = {
+  order: string[];
+  over: string | null;
+  moving: string | null;
+  open: string | null;
+  onGrab: (id: string, event: React.PointerEvent<HTMLButtonElement>) => void;
+};
+
+const DeskMoveContext = createContext<DeskMove | null>(null);
+
+const DESK_IDS = ["scholarship", "protocol", "reading", "academy", "rites", "study", "cos", "codes", "nexus", "give", "shop", "tx"];
+
+function loadDeskOrder() {
+  if (typeof window === "undefined") return [...DESK_IDS];
+  try {
+    const saved = JSON.parse(localStorage.getItem("dmt-desk-order") || "[]") as string[];
+    const known = saved.filter((id) => DESK_IDS.includes(id));
+    return [...known, ...DESK_IDS.filter((id) => !known.includes(id))];
+  } catch {
+    return [...DESK_IDS];
+  }
+}
+
+function Piece({ id, span, children }: { id: string; span?: boolean; children: ReactNode }) {
+  const desk = useContext(DeskMoveContext);
+  const tone = PIECE_TONE[id] ?? "lime";
+  const live = desk?.open === id || desk?.moving === id;
+  return (
+    <div
+      data-piece={id}
+      data-tone={tone}
+      data-live={live ? "1" : "0"}
+      style={{ order: Math.max(0, desk?.order.indexOf(id) ?? 0) }}
+      className={cn("desk-piece relative min-w-0", span && "col-span-2", desk?.over === id && "outline outline-1 outline-white")}
+    >
+      <button
+        type="button"
+        aria-label="Move"
+        className="absolute bottom-1.5 right-1.5 z-20 grid size-6 touch-none place-items-center border border-white/40 bg-black font-mono text-[9px] text-white"
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          desk?.onGrab(id, event);
+        }}
+      >
+        ✥
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function Corners() {
+  return (
+    <>
+      <span className="pointer-events-none absolute left-1.5 top-1.5 size-3 border-l border-t border-current" />
+      <span className="pointer-events-none absolute right-1.5 top-1.5 size-3 border-r border-t border-current" />
+      <span className="pointer-events-none absolute bottom-1.5 left-1.5 size-3 border-b border-l border-current" />
+      <span className="pointer-events-none absolute bottom-1.5 right-1.5 size-3 border-b border-r border-current" />
+    </>
+  );
+}
+
+function Meter({ done, total, label }: { done: number; total: number; label: string }) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  return (
+    <div className="mt-4 border-t border-current/30 pt-3">
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[10px] uppercase tracking-[0.16em]">{label}</p>
+        <p className="font-display text-2xl leading-none">{done}<span className="text-base"> / {total}</span></p>
+      </div>
+      <p className="mt-1 text-[10px] uppercase tracking-[0.16em]">Performance · {pct}%</p>
+      <div className="mt-2 h-2.5 w-full bg-white/15">
+        <div className="h-full bg-current" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
 }
 
-function Wave({ color }: { color: string }) {
-  const bars = [8, 14, 10, 22, 16, 28, 12, 34, 18, 42, 20, 16, 30, 12, 24, 10, 18, 8];
+function Dashboard() {
+  const { user } = useCurrentUserState();
+  const handle = useTemple((s) => s.handle);
+  const path = useTemple((s) => s.path);
+  const paid = useTemple((s) => s.paid);
+  const portrait = useTemple((s) => s.portrait);
+  const read = useTemple((s) => s.read);
+  const lastClass = useTemple((s) => s.lastClass);
+  const bookmarks = useTemple((s) => s.bookmarks);
+  const schedule = useTemple((s) => s.deskSchedule);
+  const logRite = useTemple((s) => s.logRite);
+  const addNexusPost = useTemple((s) => s.addNexusPost);
+  const { feed, refresh } = useNexusFeed();
+  const [circles, setCircles] = useState<StudyCircleRow[]>([]);
+  const [gift, setGift] = useState("");
+  const [signal, setSignal] = useState("");
+  const [prayer, setPrayer] = useState("");
+  const [terminal, setTerminal] = useState<string[]>(["cosmOS://divine/codes", "ready"]);
+  const [open, setOpen] = useState<string | null>(null);
+  const [order, setOrder] = useState<string[]>(() => loadDeskOrder());
+  const [over, setOver] = useState<string | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
+  const dragId = useRef<string | null>(null);
+
+  useEffect(() => {
+    void listCircles()
+      .then(setCircles)
+      .catch(() => setCircles([]));
+  }, []);
+
+  const name = (user?.displayName || handle || "Seeker").replace(/_/g, " ");
+  const clearance = paid || path === "initiate" ? "Initiate" : path === "patron" ? "Patron" : "Seeker";
+  const resumeId = lastClass && SCHOLARSHIP_SEQUENCE.includes(lastClass) ? lastClass : (SCHOLARSHIP_SEQUENCE.find((id) => !read.includes(id)) ?? SCHOLARSHIP_SEQUENCE[0] ?? "");
+  const course = resumeId ? scholarshipCourse(resumeId) : null;
+  const started = Boolean(lastClass) || read.length > 0;
+  const awakening = useTemple((s) => s.awakening);
+  const ritesDone = useTemple((s) => s.rites);
+  const classNotes = useTemple((s) => s.classNotes);
+  const classesDone = read.filter((id) => SCHOLARSHIP_SEQUENCE.includes(id)).length;
+  const booksOpen = COS_BOOKS.filter((book) => book.read).length;
+  const booksRead = COS_BOOKS.filter((book) => book.read && (read.includes(book.read) || bookmarks[book.read] != null)).length;
+  const ritesTotal = RITES.filter((item) => item.installed).length;
+  const noteCount = Object.values(classNotes).reduce((sum, notes) => sum + notes.length, 0);
+  const rite = useMemo(() => {
+    const installed = RITES.filter((item) => item.installed);
+    const day = new Date().toISOString().slice(0, 10);
+    const n = [...day].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return installed[n % installed.length] ?? RITES[0];
+  }, []);
+  const left = Object.entries(bookmarks ?? {}).sort((a, b) => b[1] - a[1])[0];
+  const leftBook = left ? COS_BOOKS.find((book) => book.read === left[0]) : null;
+  const nextBook = COS_BOOKS.find((book) => book.read && book.read !== left?.[0]) ?? COS_BOOKS.find((book) => book.read);
+  const classPct = SCHOLARSHIP_SEQUENCE.length ? Math.round((classesDone / SCHOLARSHIP_SEQUENCE.length) * 100) : 0;
+  const latest = feed[0];
+
+  const face = portrait || user?.profileImageUrl || "/header-seal.jpg";
+
+  function onGrab(id: string, event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragId.current = id;
+    setMoving(id);
+    const target = event.currentTarget;
+    const move = (ev: PointerEvent) => {
+      const hit = document
+        .elementsFromPoint(ev.clientX, ev.clientY)
+        .map((node) => (node as HTMLElement).closest?.("[data-piece]")?.getAttribute("data-piece"))
+        .find((piece) => piece && piece !== dragId.current);
+      setOver(hit ?? null);
+    };
+    const up = (ev: PointerEvent) => {
+      const hit = document
+        .elementsFromPoint(ev.clientX, ev.clientY)
+        .map((node) => (node as HTMLElement).closest?.("[data-piece]")?.getAttribute("data-piece"))
+        .find((piece) => piece && piece !== id);
+      if (hit) {
+        setOrder((prev) => {
+          const next = prev.filter((item) => item !== id);
+          const index = next.indexOf(hit);
+          next.splice(index < 0 ? next.length : index, 0, id);
+          try {
+            localStorage.setItem("dmt-desk-order", JSON.stringify(next));
+          } catch {
+            /* private mode */
+          }
+          return next;
+        });
+      }
+      dragId.current = null;
+      setMoving(null);
+      setOver(null);
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+  }
+
+  function give(amount: number) {
+    if (!amount || amount < 1) return;
+    window.open(cashAppAmountUrl(amount), "_blank", "noopener,noreferrer");
+  }
+
+  function sendPrayer() {
+    const text = prayer.trim();
+    if (!text) return;
+    const dest = Math.random() < 0.5 ? "the Metaverse" : "the cosmOS";
+    const filed = compilePrayer(text);
+    const verbs = ["invoke", "seal", "revoke", "declare", "scan"];
+    const verb = verbs[Math.floor(Math.random() * verbs.length)];
+    setTerminal((lines) =>
+      [
+        ...lines,
+        `>>> ${verb}("${text.slice(0, 72)}")`,
+        filed.code.split("\n").find((line) => line.startsWith("target")) ?? `target = "the prayer as spoken"`,
+        `print("${verb} complete")`,
+        `sent to ${dest}`,
+      ].slice(-8),
+    );
+    setPrayer("");
+  }
+
+  function postSignal() {
+    const body = signal.trim();
+    if (!body) return;
+    addNexusPost({ body, visibility: "named" });
+    void postNexus({ data: { body, visibility: "named", topic: "ongoing" } }).catch(() => {});
+    setSignal("");
+    refresh();
+  }
+
   return (
-    <svg viewBox="0 0 220 70" className="mt-4 h-16 w-full" aria-hidden>
-      {bars.map((h, i) => (
-        <rect key={i} x={8 + i * 12} y={58 - h} width="3" height={h} fill={i > 11 ? color : "currentColor"} opacity={i > 11 ? 1 : 0.35} />
-      ))}
-    </svg>
+    <main className="dash-dark bg-black text-paper">
+      <section className="px-3 pb-2 pt-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-2">
+          <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
+            <img src="/header-seal.jpg" alt="" className="size-7 shrink-0 object-contain sm:size-8" />
+            <span className="truncate font-lulo text-[10px] font-extrabold uppercase tracking-normal text-paper sm:text-xs">
+              The Divine Molecule Temple
+            </span>
+          </Link>
+          <p className="ml-auto shrink-0 text-right font-mono text-[8px] uppercase leading-tight tracking-[0.12em] text-gold sm:text-[10px]">
+            {LATIN_FULL}
+          </p>
+        </div>
+        <div className="rainbow-bar mx-auto mt-2 h-0.5 max-w-5xl" />
+      </section>
+      <section className="px-3 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <Link to="/profile" className="shrink-0">
+            <img src={face} alt="" className="size-14 object-cover sm:size-16" />
+          </Link>
+          <div className="min-w-0">
+            <p className="plate-type font-display text-[clamp(1.2rem,4vw,2rem)] uppercase leading-none">Welcome back, {name}</p>
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-paper/55">Member · Clearance: {clearance}</p>
+          </div>
+        </div>
+        <p className="mx-auto mt-3 max-w-5xl font-mono text-[10px] uppercase tracking-[0.14em] text-lime">// cos2.0 — divine molecule temple node</p>
+      </section>
+
+      <section className="px-3 pb-2 sm:px-6">
+        <DeskMoveContext.Provider value={{ order, over, moving, open, onGrab }}>
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-2">
+          <Piece id="scholarship" span>
+          <article className="chunk px-4 py-4">
+            <Corners />
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Continue your scholarship</p>
+            {course ? (
+              <>
+                <p className="mt-3 font-display text-[clamp(1.05rem,2.5vw,1.45rem)] uppercase leading-none">
+                  {course.id} // {course.title}
+                </p>
+                {course.blocks[0]?.h ? (
+                  <p className="mt-2 font-mono text-[11px] normal-case tracking-wide">Next: 01 — {course.blocks[0].h}</p>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-3 font-display text-xl uppercase leading-none">Your scholarship begins here</p>
+            )}
+            <div className="mt-4 h-1.5 w-full bg-current/15">
+              <div className="h-full bg-current" style={{ width: `${classesDone && SCHOLARSHIP_SEQUENCE.length ? Math.round((classesDone / SCHOLARSHIP_SEQUENCE.length) * 100) : 0}%` }} />
+            </div>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em]">
+              {classesDone && SCHOLARSHIP_SEQUENCE.length ? Math.round((classesDone / SCHOLARSHIP_SEQUENCE.length) * 100) : 0}% complete · {classesDone}/{SCHOLARSHIP_SEQUENCE.length}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {course ? (
+                <Link to="/academy/$code" params={{ code: course.id }} className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                  {started ? "Continue class" : "Begin your first class"}
+                </Link>
+              ) : null}
+              <Link to="/academy" className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                View syllabus
+              </Link>
+            </div>
+          </article>
+          </Piece>
+
+          <Piece id="protocol" span>
+          <article className="chunk px-4 py-4">
+            <Corners />
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Today’s protocol</p>
+            <p className="mt-3 font-display text-lg uppercase leading-none">{rite.title}</p>
+            <p className="mt-1 font-mono text-[11px] normal-case">{rite.when} · {rite.minutes}</p>
+            <p className="mt-2 font-mono text-[11px] normal-case leading-relaxed">{rite.purpose}</p>
+            <ul className="mt-3 space-y-1 font-mono text-[11px] uppercase tracking-[0.08em]">
+              <li className="flex justify-between gap-3 border-t border-current/20 pt-1"><span>Wake</span><span>{schedule.wake}</span></li>
+              <li className="flex justify-between gap-3 border-t border-current/20 pt-1"><span>Study</span><span>{schedule.study}</span></li>
+              <li className="flex justify-between gap-3 border-t border-current/20 pt-1"><span>Rest</span><span>{schedule.bed}</span></li>
+            </ul>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link to="/rite/$id" params={{ id: rite.id }} className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                Begin rite
+              </Link>
+              <Link to="/practice" className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                Reschedule
+              </Link>
+              <button type="button" onClick={() => logRite(rite.title)} className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                Mark complete
+              </button>
+            </div>
+          </article>
+          </Piece>
+
+          <Piece id="reading" span>
+          <article className="chunk px-4 py-4">
+            <Corners />
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Continue reading</p>
+            {left ? (
+              <p className="mt-3 font-display text-lg uppercase leading-none">
+                {leftBook?.title ?? left[0]} · page {left[1] + 1}
+              </p>
+            ) : (
+              <p className="mt-3 font-display text-lg uppercase leading-none">You have not opened a book yet</p>
+            )}
+            {nextBook?.read ? (
+              <p className="mt-2 font-mono text-[11px] normal-case">Next · {nextBook.n ? `Volume ${nextBook.n} · ` : ""}{nextBook.subtitle}</p>
+            ) : null}
+            <div className="mt-4">
+              <Link to="/read/$slug" params={{ slug: left ? left[0] : "welcome" }} className="inline-flex h-9 items-center border border-current px-3 text-[10px] uppercase tracking-[0.14em]">
+                {left ? "Resume reading" : "Begin Welcome, Seeker"}
+              </Link>
+            </div>
+          </article>
+          </Piece>
+          <Piece id="academy" span={open === "academy"}>
+          <Tile
+            id="academy"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-orange"
+            icon="GraduationCap"
+            title="The Academy"
+            facts={
+              course
+                ? [`${course.id} · ${classPct}%`, course.title, started ? "Continue the class" : "Begin the first class"]
+                : ["No class open", "The syllabus is waiting"]
+            }
+          >
+            <div className="mt-3 border-2 border-black bg-[#d8d8d8] px-3 py-3">
+              {course ? (
+                <>
+                  <p className="plate-type font-display text-xl uppercase leading-none text-orange">{course.title}</p>
+                  <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-orange/80">{course.id}</p>
+                </>
+              ) : (
+                <p className="plate-type font-display text-xl uppercase leading-none text-orange">Your scholarship begins here</p>
+              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {course ? (
+                  <Link to="/academy/$code" params={{ code: course.id }} className="inline-flex h-10 items-center bg-orange px-4 text-[11px] uppercase tracking-wide text-ink">
+                    {started ? "Continue class" : "Begin your first class"}
+                  </Link>
+                ) : null}
+                <Link to="/academy" className="inline-flex h-10 items-center border border-orange px-4 text-[11px] uppercase tracking-wide text-orange">
+                  View syllabus
+                </Link>
+              </div>
+              <Meter done={classesDone} total={SCHOLARSHIP_SEQUENCE.length} label="Class count" />
+              <p className="mt-2 font-mono text-[11px] normal-case text-orange/80">Class notes · {noteCount}</p>
+              <Meter done={awakening.length} total={AWAKENING.length} label="Seven-day awakening" />
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="rites" span={open === "rites"}>
+          <Tile
+            id="rites"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-lime"
+            icon="Moon"
+            title="The Rites"
+            square
+            clock={<NextRiteClock schedule={schedule} />}
+            facts={[rite.title, `${rite.when} · ${rite.minutes}`, `${ritesDone.length} of ${ritesTotal} kept`]}
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3 text-lime">
+              <ul className="space-y-1 font-mono text-[12px] normal-case">
+                <li>Alarm · Wake {schedule.wake}</li>
+                <li>Alarm · Study {schedule.study}</li>
+                <li>Alarm · Rest {schedule.bed}</li>
+              </ul>
+              <p className="mt-4 plate-type font-display text-xl uppercase leading-none">{rite.title}</p>
+              <p className="mt-2 font-mono text-[12px] normal-case">{rite.when} · {rite.minutes}</p>
+              <p className="mt-2 font-mono text-[12px] normal-case">{rite.purpose}</p>
+              <Link to="/rite/$id" params={{ id: rite.id }} className="mt-4 inline-flex h-10 items-center bg-lime px-4 text-[11px] uppercase tracking-wide text-ink">
+                Begin rite
+              </Link>
+              <Meter done={ritesDone.length} total={ritesTotal} label="Rites kept" />
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="study" span={open === "study"}>
+          <Tile
+            id="study"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-cyan"
+            icon="Library"
+            title="The Study"
+            square
+            clock={<UntilClock at={schedule.study} label="Until study" />}
+            facts={
+              left
+                ? [leftBook?.title ?? left[0], `Page ${left[1] + 1}`, `${booksRead} of ${booksOpen} volumes marked`]
+                : ["No book open", "Welcome, Seeker is waiting", `${circles.length} circles`]
+            }
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3 text-cyan">
+              {left ? (
+                <p className="plate-type font-display text-xl uppercase leading-none">{leftBook?.title ?? left[0]}</p>
+              ) : (
+                <p className="plate-type font-display text-xl uppercase leading-none">You have not opened a book yet</p>
+              )}
+              {left ? <p className="mt-2 font-mono text-[12px] normal-case">Page {left[1] + 1}</p> : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {left ? (
+                  <Link to="/read/$slug" params={{ slug: left[0] }} className="inline-flex h-10 items-center bg-cyan px-4 text-[11px] uppercase tracking-wide text-ink">
+                    Resume reading
+                  </Link>
+                ) : (
+                  <Link to="/read/$slug" params={{ slug: "welcome" }} className="inline-flex h-10 items-center bg-cyan px-4 text-[11px] uppercase tracking-wide text-ink">
+                    Begin Welcome, Seeker
+                  </Link>
+                )}
+              </div>
+              {nextBook?.read ? (
+                <p className="mt-4 font-mono text-[12px] normal-case">
+                  Next · {nextBook.n ? `Volume ${nextBook.n} · ` : ""}
+                  {nextBook.subtitle}
+                </p>
+              ) : null}
+              <Meter done={booksRead} total={booksOpen} label="Volumes opened" />
+              <p className="mt-4 text-[10px] uppercase tracking-[0.16em]">Study circles</p>
+              {circles.length ? (
+                <ul className="mt-2 space-y-2">
+                  {circles.map((circle) => (
+                    <li key={circle.id}>
+                      <Link to="/nexus" search={{ circle: circle.id }} className="font-display uppercase">
+                        {circle.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 font-mono text-[12px] normal-case">No circle is open yet.</p>
+              )}
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="cos" span={open === "cos"}>
+          <Tile
+            id="cos"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-lilac"
+            icon="Atom"
+            title="The COS"
+            square
+            facts={
+              leftBook
+                ? ["Master book", leftBook.subtitle || leftBook.title, "Pick up the page you left"]
+                : ["Master book", "The grid is online", "No page marked yet"]
+            }
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3 text-lilac">
+              <pre className="whitespace-pre-wrap font-mono text-[12px] leading-relaxed">{PRIMARY_COMMANDS}</pre>
+              <Link to="/cos" className="mt-4 inline-flex h-10 items-center bg-lilac px-4 text-[11px] uppercase tracking-wide text-ink">
+                Open the COS
+              </Link>
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="codes" span={open === "codes"}>
+          <Tile
+            id="codes"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-lime"
+            icon="Terminal"
+            title="Divine <codes/>"
+            square
+            facts={["Prayer in. Code out.", terminal[terminal.length - 1] || "Ready", "Sent to the cosmOS"]}
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3">
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  sendPrayer();
+                }}
+              >
+                <input
+                  value={prayer}
+                  onChange={(event) => setPrayer(event.target.value)}
+                  placeholder="Type a prayer"
+                  className="h-9 w-full border border-lime/40 bg-black px-3 font-mono text-[12px] normal-case text-lime outline-none"
+                />
+                <button type="submit" className="mt-2 inline-flex h-8 items-center bg-lime px-3 text-[10px] uppercase tracking-wide text-ink">
+                  Send
+                </button>
+              </form>
+              <pre className="mt-3 flex h-28 flex-col justify-end overflow-hidden whitespace-pre-wrap border border-lime/30 bg-black p-2 font-mono text-[10px] leading-relaxed text-lime">
+                {terminal.join("\n")}
+              </pre>
+              <Link to="/codes" className="mt-3 inline-flex text-[11px] uppercase tracking-wide text-lime underline">
+                Open the compiler
+              </Link>
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="nexus" span={open === "nexus"}>
+          <Tile
+            id="nexus"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-pink"
+            icon="Share2"
+            title="The Nexxus"
+            facts={
+              latest
+                ? [latest.handle || "A member", latest.body.slice(0, 72), `${circles.length} circles open`]
+                : ["The wall is quiet", "Yours can be the first line", `${circles.length} circles open`]
+            }
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3 text-pink">
+              <textarea
+                value={signal}
+                onChange={(e) => setSignal(e.target.value)}
+                rows={3}
+                placeholder="Say it to the congregation."
+                className="w-full border border-pink/40 bg-black p-3 font-mono text-[12px] normal-case text-pink outline-none"
+              />
+              <button type="button" onClick={postSignal} className="mt-2 inline-flex h-10 items-center bg-pink px-4 text-[11px] uppercase tracking-wide text-ink">
+                Post
+              </button>
+              <ul className="mt-5 space-y-3">
+                {feed.slice(0, 3).map((post) => (
+                  <li key={post.id} className="border-t border-pink/30 pt-3">
+                    <p className="text-[10px] uppercase tracking-wide">{post.handle}</p>
+                    <p className="mt-1 font-mono text-[12px] normal-case">{post.body}</p>
+                  </li>
+                ))}
+                {!feed.length ? <li className="font-mono text-[12px] normal-case">The wall is quiet. Yours can be the first.</li> : null}
+              </ul>
+              <Link to="/nexus" className="mt-4 inline-flex text-[11px] uppercase tracking-wide underline">
+                Open the Nexxus
+              </Link>
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="give" span={open === "give"}>
+          <Tile
+            id="give"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-canary"
+            icon="Rocket"
+            title="Give"
+            square
+            facts={["Support the house", "$10 · $20 · $50", "Or name your own"]}
+          >
+            <div className="dash-well mt-3 border-2 px-3 py-3 text-canary">
+              <div className="flex flex-wrap gap-2">
+                {[10, 20, 50].map((amount) => (
+                  <button key={amount} type="button" onClick={() => give(amount)} className="inline-flex h-10 items-center bg-canary px-4 text-[11px] uppercase tracking-wide text-ink">
+                    ${amount}
+                  </button>
+                ))}
+                <input
+                  value={gift}
+                  onChange={(e) => setGift(e.target.value.replace(/[^\d]/g, ""))}
+                  inputMode="numeric"
+                  placeholder="$"
+                  className="h-10 w-20 border border-canary/50 bg-black px-3 font-mono text-[12px] text-canary outline-none"
+                />
+                <button type="button" onClick={() => give(Number(gift))} className="inline-flex h-10 items-center border border-canary px-4 text-[11px] uppercase tracking-wide">
+                  Give
+                </button>
+              </div>
+              <p className="mt-6 text-[10px] uppercase tracking-[0.16em]">Mission house goal</p>
+              <div className="mt-2 h-3 w-full bg-canary/20">
+                <div className="h-full bg-canary" style={{ width: "5%" }} />
+              </div>
+              <p className="mt-2 font-mono text-[12px]">5%</p>
+              <Link to="/housing" className="mt-3 inline-flex text-[11px] uppercase tracking-wide underline">
+                The house
+              </Link>
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="shop" span={open === "shop"}>
+          <Tile
+            id="shop"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-paper"
+            icon="ShoppingBag"
+            title="The Shop"
+            square
+            facts={[STICKERS[0]?.name ?? "Stickers", STICKERS[0] ? `$${STICKERS[0].price}` : "Open the shelf", "Three on the desk"]}
+          >
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {STICKERS.slice(0, 3).map((sticker) => (
+                <Link key={sticker.id} to="/shop" className="block">
+                  <img src={sticker.art[0]} alt={sticker.name} className="aspect-square w-full bg-ink object-contain" />
+                  <p className="mt-2 font-display text-sm uppercase">{sticker.name}</p>
+                  <p className="font-mono text-[11px]">${sticker.price}</p>
+                </Link>
+              ))}
+            </div>
+          </Tile>
+          </Piece>
+
+          <Piece id="tx" span>
+          <Tile
+            id="tx"
+            open={open}
+            setOpen={setOpen}
+            tone="bg-ink text-lime"
+            icon="Radio"
+            title="The Transmission"
+            facts={["Chancellor Mønday", "Five minutes", "The desk is open"]}
+          >
+            <p className="mt-3 font-mono text-[11px] normal-case text-lime/80">Chancellor Mønday · 5 min · // node broadcast</p>
+            <video controls poster="/monday-manifesto.jpg" className="mt-3 w-full bg-black" src="/monday-manifesto.mp4" />
+          </Tile>
+          </Piece>
+        </div>
+        </DeskMoveContext.Provider>
+        <footer className="mx-auto mt-4 flex max-w-5xl items-center justify-between gap-3 border-t border-white/15 py-3 font-mono text-[9px] uppercase tracking-[0.14em]">
+          <span className="text-lime">System: online</span>
+          <span className="hidden text-paper/70 sm:inline">Run light. Terminate darkness. Stay online.</span>
+          <span className="text-paper/50">Divine Molecule Temple</span>
+        </footer>
+      </section>
+      <FirstTour where="desk" />
+    </main>
   );
 }

@@ -19,6 +19,7 @@ function Login() {
   const { user, isPending } = useCurrentUserState();
   const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const asked = new URLSearchParams(searchStr).get("next") || "";
+  const oauthError = new URLSearchParams(searchStr).get("error");
   const next = asked.startsWith("/") && !asked.startsWith("//") ? asked : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +38,9 @@ function Login() {
       lede={next.includes("buy=1") ? "Sign in. The $10 charge for this class opens next." : "Present credentials to enter the sanctuary."}
     >
       <ProviderButtons callbackURL={next} />
+      {oauthError ? (
+        <p className="mt-4 text-center text-[11px] text-pink">Sign-in did not complete. Try it again.</p>
+      ) : null}
       <p className="mt-6 text-center text-[10px] tracking-[0.3em] text-paper/35">Or</p>
       <form
         className="mt-6 space-y-4"

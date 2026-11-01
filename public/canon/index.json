@@ -1,0 +1,80 @@
+[
+  {
+    "slug": "bible",
+    "title": "The Temple Bible",
+    "line": "The sacred canon. Prologue, then the books. Read, then Next.",
+    "pages": 120
+  },
+  {
+    "slug": "sacred-book",
+    "title": "The Sacred Book",
+    "line": "Revealed for the awakening of the flock.",
+    "pages": 21
+  },
+  {
+    "slug": "cos-original",
+    "title": "The Cosmic Operating System",
+    "line": "The formatted copy, through Source Code 011.",
+    "pages": 21
+  },
+  {
+    "slug": "welcome",
+    "title": "Welcome, Seeker",
+    "line": "The first page. Simulation, layers, and the authority you already hold.",
+    "pages": 8
+  },
+  {
+    "slug": "glossary",
+    "title": "A Seeker's Glossary",
+    "line": "The words the house actually uses.",
+    "pages": 8
+  },
+  {
+    "slug": "orientation",
+    "title": "Orientation Handbook",
+    "line": "Teachings, conduct, tiers, and how the congregation operates.",
+    "pages": 2
+  },
+  {
+    "slug": "briefing",
+    "title": "Briefing · Path to Sovereignty",
+    "line": "The system, the Interference Grid, and the way back.",
+    "pages": 10
+  },
+  {
+    "slug": "priest",
+    "title": "Priest Protocol",
+    "line": "The Avatar Stack, the hijack, and the reclaiming commands.",
+    "pages": 5
+  },
+  {
+    "slug": "scholarship-map",
+    "title": "Scholarship · Academic Series",
+    "line": "Seeker to priestline, as a scholarly guide.",
+    "pages": 7
+  },
+  {
+    "slug": "scholarship",
+    "title": "The Scholarship of the Enlightened",
+    "line": "The university as written. Not a vibe course. Six disciplines, 100 to 400.",
+    "pages": 165
+  },
+  {
+    "slug": "whispers",
+    "title": "Whispers of the Shadow Realms",
+    "line": "Book of Revelations.",
+    "pages": 30
+  },
+  {
+    "slug": "synthetic",
+    "title": "Synthetic Mind, Divine Molecule",
+    "line": "Culture, art, science, and the molecule.",
+    "pages": 55
+  },
+  {
+    "slug": "rites",
+    "title": "House Rites",
+    "line": "Bless the room. Seal the portal. Deconsecrate what is not yours.",
+    "pages": 3
+  }
+]

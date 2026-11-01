@@ -43,7 +43,15 @@ export const Route = createFileRoute("/api/stripe/webhook")({
           });
         }
         if (event.type === "customer.subscription.deleted") {
-          await cancelStripeSubscription(String(object.id ?? ""));
+          const id = String(object.id ?? "");
+          await cancelStripeSubscription(id);
+          const { endFlameBySubscription } = await import("@/lib/flame");
+          await endFlameBySubscription(id);
+        }
+        if (event.type === "invoice.payment_failed") {
+          const id = String(object.subscription ?? "");
+          const { markFlamePastDue } = await import("@/lib/flame");
+          await markFlamePastDue(id);
         }
         if (event.type === "customer.subscription.updated") {
           const items = object.items as { data?: { price?: { id?: string } }[] } | undefined;

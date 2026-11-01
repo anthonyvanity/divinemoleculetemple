@@ -118,9 +118,9 @@ export const NAV = [
 		icon: "Sparkles"
 	},
 	{
-		to: "/nexus",
-		label: "Nexus",
-		icon: "Share2"
+		to: "/cos",
+		label: "COS",
+		icon: "Atom"
 	},
 	{
 		to: "/transmissions",
@@ -129,7 +129,7 @@ export const NAV = [
 	},
 	{
 		to: "/library",
-		label: "Library",
+		label: "Sacred Library",
 		icon: "Library"
 	},
 	{
@@ -160,6 +160,10 @@ export const FOOTER = {
 		{
 			to: "/cos",
 			label: "Cosmic OS"
+		},
+		{
+			to: "/codes",
+			label: "Divine Codes"
 		},
 		{
 			to: "/archives",
@@ -212,10 +216,6 @@ export const FOOTER = {
 	],
 	support: [
 		{
-			to: "/gates",
-			label: "Gates"
-		},
-		{
 			to: "/shop",
 			label: "Shop"
 		},
@@ -262,7 +262,7 @@ export const STRIP = [
 	},
 	{
 		id: "library",
-		title: "Books",
+		title: "Library",
 		icon: "Library",
 		to: "/library"
 	},
@@ -273,10 +273,22 @@ export const STRIP = [
 		to: "/cos"
 	},
 	{
-		id: "nexus",
-		title: "Nexus",
-		icon: "Share2",
-		to: "/nexus"
+		id: "codes",
+		title: "Codes",
+		icon: "Terminal",
+		to: "/codes"
+	},
+	{
+		id: "give",
+		title: "Give",
+		icon: "Rocket",
+		to: "/altar"
+	},
+	{
+		id: "house",
+		title: "House",
+		icon: "Home",
+		to: "/housing"
 	},
 	{
 		id: "shop",
@@ -297,10 +309,6 @@ export const MISSION_LINKS = [
 	{
 		to: "/altar",
 		label: "Give"
-	},
-	{
-		to: "/gates",
-		label: "Gates"
 	}
 ];
 export const ACADEMY_LINKS = [
@@ -311,10 +319,6 @@ export const ACADEMY_LINKS = [
 	{
 		to: "/academy",
 		label: "Plan"
-	},
-	{
-		to: "/gates",
-		label: "Start"
 	},
 	{
 		to: "/awakening",
@@ -368,7 +372,7 @@ export const CHAMBERS = [
 	},
 	{
 		id: "library",
-		title: "Library",
+		title: "Sacred Library",
 		icon: "Library",
 		tone: "orange" as Tone,
 		d: "The sacred archive. Texts, codes, and scholarship across the chambers.",

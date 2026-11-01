@@ -7,7 +7,7 @@ import { asksForSeat, classUnlocked } from "@/lib/syllabus";
 import { scholarshipCourse, SCHOLARSHIP_SEQUENCE } from "@/lib/scholarship";
 import { degreeCourse } from "@/lib/degree-catalog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { markNode, submitContact } from "@/lib/temple-data";
+import { markNode, saveDesk, submitContact } from "@/lib/temple-data";
 import { SpamFields, useSpamSeal, withRecaptcha } from "@/components/spam-fields";
 import { codeById } from "@/lib/temple-content";
 import { useTemple } from "@/lib/temple-store";
@@ -74,7 +74,10 @@ function CodePage() {
   const charged = useRef(false);
 
   useEffect(() => {
-    if (reading || seminar || lesson) setLastClass(id);
+    if (reading || seminar || lesson) {
+      setLastClass(id);
+      void saveDesk({ data: { lastClass: id } }).catch(() => {});
+    }
   }, [id]);
 
   useEffect(() => {

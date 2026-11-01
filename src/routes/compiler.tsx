@@ -106,10 +106,7 @@ function Compiler() {
                   Human prayer
                 </p>
                 <article className="mt-2 border p-5 text-sm leading-relaxed" style={{ borderColor: "var(--desk-line)" }}>
-                  <p className="text-[10px] uppercase tracking-wide text-lime">
-                    To identify and purge the lingering energetic attachment currently adhering to the user's field.
-                  </p>
-                  <p className="mt-4 whitespace-pre-wrap uppercase tracking-wide text-paper/80">{latest.prayer}</p>
+                  <p className="mt-4 whitespace-pre-wrap text-paper/80">{latest.prayer}</p>
                 </article>
               </div>
             </div>

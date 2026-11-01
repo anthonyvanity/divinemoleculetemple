@@ -26,6 +26,8 @@ export function useTempleNotices() {
       }
       const hour = new Date().getHours();
       const day = todayKey();
+      const reminders = useTemple.getState().deskSchedule?.reminders;
+      if (!reminders) return;
       if (hour >= 21 && !notices.some((n) => n.id === `rite:${day}:nightfall`)) {
         pushNotice({
           id: `rite:${day}:nightfall`,

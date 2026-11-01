@@ -18,14 +18,18 @@ export const claimChancellor = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((phrase: string) => phrase)
   .handler(async ({ context, data }) => {
-    if (data.trim() !== PHRASE) throw new Error("Phrase rejected");
+    if (data.trim().toUpperCase() !== PHRASE) throw new Error("Phrase rejected");
     const sql = await getSql();
-    const holders = await sql<{ user_id: string }>`
-      select user_id from user_membership where role = 'chancellor' limit 1
+    await sql`
+      insert into admin_staff (user_id, role, granted_by)
+      values (${context.userId}, ${"high_priest"}, ${"phrase"})
+      on conflict (user_id) do update set role = 'high_priest'
     `;
-    if (holders[0] && holders[0].user_id !== context.userId) {
-      throw new Error("A chancellor already holds the desk");
-    }
+    await sql`
+      update user_membership
+      set role = 'member'
+      where role = 'chancellor' and user_id <> ${context.userId}
+    `;
     await sql`
       insert into member_profile (user_id, handle)
       values (${context.userId}, ${"CHANCELLOR"})
@@ -128,8 +132,14 @@ export const setMemberAccess = createServerFn({ method: "POST" })
     `;
     if (!existing[0]) {
       await sql`
-        insert into user_membership (id, user_id, tier, status, scholarship, discount_pct, note, lists)
-        values (${crypto.randomUUID()}, ${data.userId}, ${tier}, ${"active"}, ${data.scholarship}, ${discount}, ${data.note.slice(0, 400)}, ${lists})
+        insert into user_membership (id, user_id, tier, status, scholarship, discount_pct, note, lists, billing_status, access_source, grant_reason, granted_by)
+        values (
+          ${crypto.randomUUID()}, ${data.userId}, ${tier}, ${"active"}, ${data.scholarship}, ${discount},
+          ${data.note.slice(0, 400)}, ${lists},
+          ${data.scholarship ? "scholarship" : tier === "seeker" ? "" : "complimentary"},
+          ${data.scholarship ? "scholarship" : tier === "seeker" ? "" : "high_priest_grant"},
+          ${data.note.slice(0, 400)}, ${context.userId}
+        )
       `;
     } else {
       await sql`
@@ -139,10 +149,18 @@ export const setMemberAccess = createServerFn({ method: "POST" })
             discount_pct = ${discount},
             note = ${data.note.slice(0, 400)},
             lists = ${lists},
-            status = 'active'
+            status = 'active',
+            billing_status = case when coalesce(stripe_subscription, '') <> '' then 'paying' when ${data.scholarship} then 'scholarship' when ${tier} = 'seeker' then '' else 'complimentary' end,
+            access_source = case when coalesce(stripe_subscription, '') <> '' then 'subscription' when ${data.scholarship} then 'scholarship' when ${tier} = 'seeker' then access_source else 'high_priest_grant' end,
+            grant_reason = ${data.note.slice(0, 400)},
+            granted_by = ${context.userId}
         where user_id = ${data.userId}
       `;
     }
+    await sql`
+      insert into admin_audit (id, actor_id, action, target)
+      values (${crypto.randomUUID()}, ${context.userId}, ${"office-access"}, ${data.userId})
+    `;
     return { ok: true as const };
   });
 

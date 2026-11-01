@@ -14,6 +14,7 @@ import {
   Share2,
   ShoppingBag,
   Sparkles,
+  Terminal,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const ICONS: Record<string, LucideIcon> = {
   Rocket,
   Crown,
   Sparkles,
+  Terminal,
   Radio,
 };
 

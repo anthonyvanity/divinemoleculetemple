@@ -32,16 +32,27 @@ function slugify(value: string) {
 async function viewerOf(userId: string): Promise<Viewer> {
   if (!userId) return { signedIn: false, paid: false, role: "member" };
   const sql = await getSql();
-  const [row] = await sql<{ role: string; tier: string; scholarship: boolean }>`
+  const [row] = await sql<{ role: string; tier: string; scholarship: boolean; suspended: boolean; billing_status: string; grant_expires: string; stripe_subscription: string }>`
     select coalesce(role, 'member') as role,
            coalesce(tier, 'seeker') as tier,
-           coalesce(scholarship, false) as scholarship
+           coalesce(scholarship, false) as scholarship,
+           coalesce(suspended, false) as suspended,
+           coalesce(billing_status, '') as billing_status,
+           coalesce(grant_expires::text, '') as grant_expires,
+           coalesce(stripe_subscription, '') as stripe_subscription
     from user_membership
     where user_id = ${userId}
     order by since desc
     limit 1
   `;
   const role = row?.role ?? "member";
+  if (row?.suspended) return { signedIn: true, paid: false, role: "member" };
+  const expired =
+    Boolean(row?.grant_expires) &&
+    row.grant_expires.slice(0, 10) < new Date().toISOString().slice(0, 10) &&
+    !row.stripe_subscription &&
+    ["complimentary", "scholarship", "sponsored"].includes(row.billing_status);
+  if (expired && role !== "chancellor") return { signedIn: true, paid: false, role: "member" };
   const tier = row?.tier ?? "seeker";
   const paid = Boolean(row?.scholarship) || tier === "initiate" || tier === "patron" || role === "chancellor";
   return { signedIn: true, paid, role };

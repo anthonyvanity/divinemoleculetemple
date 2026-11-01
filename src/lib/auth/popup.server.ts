@@ -148,9 +148,15 @@ function completionHtml(message: PopupMessage): string {
   var msg = { source: "grok-auth-popup", token: null };
   try { if (el && el.textContent) msg = JSON.parse(el.textContent); } catch (e) {}
   try {
-    if (window.opener) window.opener.postMessage(msg, window.location.origin);
+    if (window.opener && !window.opener.closed) window.opener.postMessage(msg, window.location.origin);
   } catch (e) {}
-  try { window.close(); } catch (e) {}
+  try { localStorage.setItem("grok-auth.popup-result", JSON.stringify(msg)); } catch (e) {}
+  try {
+    var bc = new BroadcastChannel("grok-auth-popup");
+    bc.postMessage(msg);
+    bc.close();
+  } catch (e) {}
+  setTimeout(function () { try { window.close(); } catch (e) {} }, 60);
 })();
 </script>
 </body>

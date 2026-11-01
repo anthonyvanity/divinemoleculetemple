@@ -22,6 +22,9 @@ const HOUSE_HOSTS = new Set([
   "www.dmttemple.com",
 ]);
 
+/** OAuth is registered on this host. Custom domains must start Google here. */
+export const CANONICAL_AUTH_ORIGIN = "https://divinemoleculetemple.grok.me";
+
 /** Absolute https URL on a Temple domain, or null. */
 export function houseReturnUrl(raw: string | null): URL | null {
   if (!raw) return null;

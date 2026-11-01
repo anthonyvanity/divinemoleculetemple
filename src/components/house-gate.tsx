@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { PublicFace } from "@/components/public-face";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
-const PASS = ["/login", "/register", "/legal", "/contact", "/cos", "/altar", "/gates", "/enter", "/archives", "/archive", "/program", "/awakening", "/auth", "/ascend", "/shop", "/academy", "/classes", "/nexus", "/ceremonies", "/member", "/anthony_vanity", "/Anthony_Vanity", "/HighPriest", "/highpriest", "/ChancellorMonday", "/chancellormonday"];
-const MEMBER = ["/dashboard", "/profile", "/chancellor"];
+const PASS = ["/login", "/register", "/legal", "/contact", "/cos", "/altar", "/gates", "/enter", "/archives", "/archive", "/read", "/library", "/program", "/awakening", "/auth", "/ascend", "/shop", "/academy", "/classes", "/nexus", "/ceremonies", "/member", "/anthony_vanity", "/Anthony_Vanity", "/HighPriest", "/highpriest", "/ChancellorMonday", "/chancellormonday"];
+const MEMBER = ["/dashboard", "/profile", "/chancellor", "/admin"];
 
 export function HouseGate({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

@@ -1,7 +1,7 @@
 import { genericOAuthClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
-import { sameHouseHost } from "@/lib/vault-gate";
+import { sameHouseHost, CANONICAL_AUTH_ORIGIN } from "@/lib/vault-gate";
 import { GROK_PROVIDERS } from "./providers";
 
 /**
@@ -73,13 +73,9 @@ export function adoptBearer(token: string): void {
   setBearerToken(token);
 }
 
-/**
- * Google sign-in finishes on the app's registered host (often *.grok.me).
- * From a custom domain, come back through /auth/bridge so the session is
- * replayed on the host the person actually used.
- */
+/** On the Temple domain, keep Google on this host. A hop to grok.me was dying before Google opened. */
 function bridgeCallback(callbackURL: string, errorCallbackURL: string) {
-  if (typeof window === "undefined" || !sameHouseHost(window.location.hostname)) {
+  if (typeof window === "undefined" || sameHouseHost(window.location.hostname)) {
     return { callbackURL, errorCallbackURL };
   }
   const back = new URL(callbackURL, window.location.origin);
@@ -103,8 +99,25 @@ function inLivePreview(): boolean {
   );
 }
 
-/** Message the popup posts back to the opener once sign-in completes. */
+const POPUP_RESULT_KEY = "grok-auth.popup-result";
+const POPUP_CHANNEL = "grok-auth-popup";
+
+/** Message the popup posts back once sign-in completes. X often nulls window.opener. */
 type PopupMessage = { source: "grok-auth-popup"; token: string | null; error?: string };
+
+function readPopupResult(): PopupMessage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(POPUP_RESULT_KEY);
+    if (!raw) return null;
+    window.localStorage.removeItem(POPUP_RESULT_KEY);
+    const data = JSON.parse(raw) as PopupMessage;
+    if (!data || data.source !== "grok-auth-popup") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Start sign-in with one upstream provider (`providerId` from `GROK_PROVIDERS`),
@@ -124,6 +137,20 @@ export async function signIn(
   providerId: string,
   opts: { callbackURL?: string; errorCallbackURL?: string } = {},
 ): Promise<void> {
+  // Google returns to grok.me. Start there so the state cookie and the
+  // callback are the same host. Starting on the Temple domain sets the
+  // cookie on www and the return never sees it.
+  if (typeof window !== "undefined" && sameHouseHost(window.location.hostname) && !inLivePreview()) {
+    const back = new URL(opts.callbackURL ?? "/dashboard", window.location.origin);
+    if (back.hostname === "divinemoleculetemple.com") back.hostname = "www.divinemoleculetemple.com";
+    if (back.hostname === "dmttemple.com") back.hostname = "www.dmttemple.com";
+    const start = new URL("/auth/start", CANONICAL_AUTH_ORIGIN);
+    start.searchParams.set("provider", providerId);
+    start.searchParams.set("to", back.href);
+    window.location.assign(start.href);
+    return;
+  }
+
   const bridged = bridgeCallback(opts.callbackURL ?? "/dashboard", opts.errorCallbackURL ?? "/login");
   const callbackURL = bridged.callbackURL;
   const errorCallbackURL = bridged.errorCallbackURL;
@@ -203,21 +230,41 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
     const origin = window.location.origin;
     let settled = false;
     let closeTimer: number | undefined;
+    let channel: BroadcastChannel | null = null;
     const settle = (token: string | null) => {
       if (settled) return;
       settled = true;
       cleanup();
       resolve(token);
     };
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== origin) return;
-      const data = event.data as PopupMessage | undefined;
+    const take = (data: PopupMessage | null | undefined) => {
       if (!data || data.source !== "grok-auth-popup") return;
       settle(data.token ?? null);
     };
-    // Fallback when the user dismisses the popup. Grace period lets the
-    // completion page's postMessage win over a racing `popup.closed`.
+    // Drop a stale result from an earlier attempt before this popup returns.
+    readPopupResult();
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== origin) return;
+      take(event.data as PopupMessage | undefined);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== POPUP_RESULT_KEY || !event.newValue) return;
+      try {
+        take(JSON.parse(event.newValue) as PopupMessage);
+      } catch {
+        /* ignore a bad payload */
+      }
+    };
+    try {
+      channel = new BroadcastChannel(POPUP_CHANNEL);
+      channel.onmessage = (event) => take(event.data as PopupMessage);
+    } catch {
+      channel = null;
+    }
+    // X severs window.opener, so the popup also writes localStorage. Poll in
+    // case the storage event is missed, and when the window is dismissed.
     const pollTimer = window.setInterval(() => {
+      take(readPopupResult());
       if (!popup.closed) return;
       window.clearInterval(pollTimer);
       closeTimer = window.setTimeout(() => settle(null), 400);
@@ -226,8 +273,11 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
       window.clearInterval(pollTimer);
       if (closeTimer !== undefined) window.clearTimeout(closeTimer);
       window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      channel?.close();
     }
     window.addEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
   });
 }
 

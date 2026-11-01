@@ -1,6 +1,9 @@
-const v = "?v=4";
+const v = "?v=5";
 
 const LINES = [
+  `/shop/wordmark-lime.jpg${v}`,
+  `/shop/cosmic-system.png${v}`,
+  `/shop/dmt-chrome.jpg${v}`,
   `/shop/seal.jpg${v}`,
   `/shop/round.png${v}`,
   `/shop/eye.png${v}`,
@@ -20,6 +23,27 @@ const LINES = [
 ] as const;
 
 export const STICKERS = [
+  {
+    id: "wordmark-lime",
+    name: "The wordmark",
+    price: 5,
+    art: [`/shop/wordmark-lime.jpg${v}`],
+    line: "The Divine Molecule Temple.",
+  },
+  {
+    id: "cosmic-system",
+    name: "The Cosmic Operating System",
+    price: 5,
+    art: [`/shop/cosmic-system.png${v}`],
+    line: "The Cosmic Operating System.",
+  },
+  {
+    id: "dmt-chrome",
+    name: "DMT",
+    price: 5,
+    art: [`/shop/dmt-chrome.jpg${v}`],
+    line: "DMT.",
+  },
   {
     id: "seal",
     name: "The seal",

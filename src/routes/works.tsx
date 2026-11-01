@@ -64,20 +64,12 @@ You are overwritten.`}
       <section className="px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-3xl space-y-5 text-paper/70">
           <SectionKicker>Works of the Temple</SectionKicker>
-          <h2 className="font-display text-title text-paper">Housing, care, and creative rehabilitation.</h2>
+          <h2 className="font-display text-title text-paper">A housing vision. Not a running program.</h2>
           <p>
-            The Divine Molecule Temple operates a specialized sanctuary for LGBTQIA+ artists in recovery from
-            homelessness and addiction — a bridge between emergency survival and creative revival in Hollywood.
+            The Temple’s aim is supportive housing and a path back to stability for people rebuilding their lives. That work is a proposal. It is not an open, funded residence, and this page will not invent a headcount or an outcome.
           </p>
           <p>
-            Stabilization means placement of 8–10 adults into a supervised, sober living environment. Curriculum
-            means one-on-one and small-group sessions fusing artistic discipline with the spiritual recovery
-            model of this house.
-          </p>
-          <p>
-            Partners who wish to fund the facility lease may use a direct-vendor payment to the landlord so
-            housing money stays housing money. That proposal lives here, under Works — not on the same door as
-            the Academy homepage.
+            Faith here is meant to do something. Volunteer interest and gifts go through the house. Money designated for housing is only collected when a real designation is being administered.
           </p>
           <div className="border border-lime/30 p-6 text-paper">
             <p className="text-micro tracking-wide text-lime">Clergy contact</p>
@@ -91,10 +83,10 @@ You are overwritten.`}
           </div>
           <div className="flex flex-wrap gap-3 pt-4">
             <Button asChild variant="lime">
-              <Link to="/altar">Mission + donate</Link>
+              <Link to="/altar">Support the work</Link>
             </Button>
             <Button asChild variant="dark">
-              <Link to="/housing">The housing</Link>
+              <Link to="/contact">Volunteer</Link>
             </Button>
           </div>
         </div>

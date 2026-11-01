@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authClient, authEnabled } from "./client";
 
 /** Normalized user shape used across the app, auth on or off. */
@@ -59,6 +59,8 @@ export function useCurrentUserState(): CurrentUserState {
   if (!authEnabled) return { user: DEV_USER, isPending: false };
   // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime
   const { data, isPending } = authClient.useSession();
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime
+  const stalled = useStalled(isPending);
   const raw = data?.user;
   const id = raw?.id ?? "";
   const displayName = raw?.name ?? null;
@@ -70,7 +72,21 @@ export function useCurrentUserState(): CurrentUserState {
     if (!id) return null;
     return { id, displayName, primaryEmail, profileImageUrl, isDevFallback: false };
   }, [id, displayName, primaryEmail, profileImageUrl]);
-  return { user, isPending };
+  return { user, isPending: isPending && !stalled };
+}
+
+/** A hung /get-session must not hold the Temple on “synchronizing” forever. */
+function useStalled(pending: boolean) {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (!pending) {
+      setStalled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setStalled(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [pending]);
+  return stalled;
 }
 
 /**

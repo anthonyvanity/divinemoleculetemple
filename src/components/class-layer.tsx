@@ -17,7 +17,13 @@ export function ClassLayer({
   const [mode, setMode] = useState<"read" | "notes" | "video">("read");
   const note = useTemple((s) => s.classNotes?.[code]?.[0]?.body ?? "");
   const setClassNote = useTemple((s) => s.setClassNote);
-  const { user } = useCurrentUserState();
+  const { user, isPending } = useCurrentUserState();
+  const signedIn = Boolean(user);
+  const locked = !signedIn;
+
+  useEffect(() => {
+    if (!signedIn && mode !== "read") setMode("read");
+  }, [signedIn, mode]);
   const pending = useRef<number | null>(null);
   const loaded = useRef(false);
 
@@ -45,56 +51,70 @@ export function ClassLayer({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-paper/10 px-4 py-3 sm:px-6">
-        <button
-          type="button"
-          onClick={() => setMode("read")}
-          className={cn("min-h-9 px-3 text-micro tracking-wide", mode === "read" ? "bg-lime text-ink" : "text-paper/60")}
-        >
-          Lesson
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode((m) => (m === "notes" ? "read" : "notes"))}
-          className={cn("min-h-9 px-3 text-micro tracking-wide", mode === "notes" ? "bg-lime text-ink" : "text-paper/60")}
-        >
-          <StickyNote className="mr-1 inline size-3.5" /> Class notes
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("video")}
-          className={cn("min-h-9 px-3 text-micro tracking-wide", mode === "video" ? "bg-lime text-ink" : "text-paper/60")}
-        >
-          <Play className="mr-1 inline size-3.5" /> Watch
-        </button>
+      <div className="flex flex-wrap items-center gap-2 border-b border-paper/15 px-4 py-3 sm:px-6">
+        {(
+          [
+            ["read", "Lesson"],
+            ["notes", "Class notes"],
+            ["video", "Watch"],
+          ] as const
+        ).map(([id, label]) => {
+          const shut = id !== "read" && (locked || isPending);
+          return (
+            <button
+              key={id}
+              type="button"
+              disabled={shut}
+              onClick={() => {
+                if (shut) return;
+                setMode(id);
+              }}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-1.5 border px-3 text-[11px] uppercase tracking-[0.12em]",
+                shut
+                  ? "cursor-not-allowed border-white/15 text-paper/35"
+                  : mode === id
+                    ? "cursor-pointer border-lime bg-lime text-ink"
+                    : "cursor-pointer border-white/25 text-paper hover:border-lime hover:text-lime",
+              )}
+            >
+              {id === "notes" ? <StickyNote className="size-3.5" /> : null}
+              {id === "video" ? <Play className="size-3.5" /> : null}
+              {label}
+            </button>
+          );
+        })}
       </div>
+      {locked && !isPending ? (
+        <p className="px-4 pt-3 text-[10px] uppercase tracking-[0.14em] text-paper/45 sm:px-6">Sign in to open class notes and the lecture.</p>
+      ) : null}
 
-      {mode === "notes" ? (
-        <div className="border-b border-paper/10 px-4 py-4 sm:px-6">
-          <label className="block max-w-3xl">
+      {mode === "notes" && signedIn ? (
+        <div className="px-4 py-6 sm:px-6">
+          <label className="mx-auto block max-w-3xl">
             <span className="text-[10px] uppercase tracking-[0.16em] text-lime">{code}</span>
             <textarea
               value={note}
               onChange={(e) => write(e.target.value)}
-              rows={6}
+              rows={10}
               placeholder="Write something, if you want."
-              className="mt-2 w-full resize-y border border-lime/40 bg-transparent p-3 font-mono text-[13px] normal-case leading-relaxed text-paper outline-none"
+              className="mt-2 w-full resize-y border border-white/25 bg-transparent p-3 font-mono text-[13px] normal-case leading-relaxed text-paper outline-none"
             />
           </label>
         </div>
       ) : null}
 
-      {mode === "video" ? (
+      {mode === "video" && signedIn ? (
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
           {videoSrc ? (
-            <video src={videoSrc} controls playsInline className="aspect-video w-full bg-ink" />
+            <video src={videoSrc} controls playsInline className="aspect-video w-full bg-black" />
           ) : (
-            <p className="border border-paper/15 p-8 text-sm text-paper/55">Lecture video for this node is still being encoded.</p>
+            <p className="border border-white/25 p-8 text-sm text-paper/70">This class does not have a lecture video yet.</p>
           )}
         </div>
-      ) : (
-        children
-      )}
+      ) : null}
+
+      {mode === "read" || !signedIn ? children : null}
     </div>
   );
 }

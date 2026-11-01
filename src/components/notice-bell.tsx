@@ -74,6 +74,9 @@ export function NoticeBell() {
                 Mark all read
               </button>
             ) : null}
+            <Link to="/notices" className="text-[9px] tracking-[0.16em]" style={{ color: "var(--desk-accent)" }}>
+              All
+            </Link>
           </div>
           <ul className="max-h-80 overflow-y-auto">
             {notices.length === 0 ? (

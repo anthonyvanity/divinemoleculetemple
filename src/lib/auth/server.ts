@@ -166,6 +166,33 @@ const database = databaseUrl
 /** Session token cookie name — also read by the live-preview popup completion page. */
 export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
+/** X returns a user id and sometimes only a handle. Keep a stable address. */
+function mapXProfile(profile: Record<string, unknown>) {
+  const nested =
+    profile.data && typeof profile.data === "object"
+      ? (profile.data as Record<string, unknown>)
+      : {};
+  const src = { ...profile, ...nested };
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const id = text(src.id) || text(src.sub);
+  const handle = text(src.username) || text(src.preferred_username) || text(src.user_name);
+  const given = text(src.email);
+  const email = given.includes("@")
+    ? given.toLowerCase()
+    : id
+      ? `${id.toLowerCase()}@x.divinemoleculetemple.invalid`
+      : "";
+  const name = text(src.name) || handle || "Seeker";
+  const image = text(src.picture) || text(src.profile_image_url) || text(src.image);
+  return {
+    ...(id ? { id } : {}),
+    name,
+    ...(email ? { email } : {}),
+    emailVerified: Boolean(given.includes("@") && src.email_verified === true),
+    ...(image ? { image } : {}),
+  };
+}
+
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
 const grokOAuthPlugin = authConfigured
@@ -186,6 +213,9 @@ const grokOAuthPlugin = authConfigured
         // `prompt=select_account`, the user always gets the account chooser
         // and can pick (or switch) which account to sign in with.
         authorizationUrlParams: { idp, prompt: "login" },
+        // X's token often has a handle and no email. Better Auth aborts that
+        // with email_is_missing / name_is_missing before a session exists.
+        ...(providerId === "grok-x" ? { mapProfileToUser: mapXProfile } : {}),
       })),
     })
   : null;

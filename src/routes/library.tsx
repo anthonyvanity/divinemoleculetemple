@@ -1,192 +1,168 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ChamberHero, SectionKicker } from "@/components/chamber";
-import { getBearerToken } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { SCROLLS, scrollUnlocked } from "@/lib/scrolls";
-import { COS_VOLUMES, SOURCE_CODES } from "@/lib/temple-content";
+import { SCROLLS } from "@/lib/scrolls";
+import { SOURCE_CODES } from "@/lib/temple-content";
 import { listVault } from "@/lib/temple-admin";
-import { canRead, daysActive, useTemple } from "@/lib/temple-store";
-import { cn } from "@/lib/utils";
+import { useTemple } from "@/lib/temple-store";
 
 export const Route = createFileRoute("/library")({ component: Library });
 
-const SHELF = [
-  { src: "/covers/cos.jpg", title: "The Cosmic Operating System", line: "The decryption manual. Open it and read.", to: "/cos" as const, frame: "border-cyan" },
-  { src: "/covers/bible.jpg", title: "The Temple Bible", line: "Contents, then Next. Your page is kept.", to: "/academy/bible" as const, frame: "border-gold" },
-  { src: "/covers/codes.jpg", title: "Source codes", line: "How a code is written, and the ones already in the house.", to: "/academy/codes" as const, frame: "border-cyan" },
-] as const;
+const FACES: { src: string; title: string; line?: string; to?: "/cos" | "/codes" }[] = [
+  { src: "/covers/shelf/cos-manual.jpg", title: "The Cosmic Operating System", to: "/cos" },
+  { src: "/covers/cos/divine-codes.jpg", title: "Divine <codes/>", line: "hacking holy scripture", to: "/codes" },
+  { src: "/covers/shelf/molecule.jpg", title: "The Divine Molecule" },
+  { src: "/covers/shelf/bodies.jpg", title: "The Nine Sacred Bodies" },
+  { src: "/covers/shelf/christos.jpg", title: "Christos Unveiled" },
+  { src: "/covers/shelf/flame.jpg", title: "The Flame" },
+  { src: "/covers/shelf/awareness.jpg", title: "An Introduction to Awareness" },
+  { src: "/covers/shelf/veil.jpg", title: "The Veil Breaker" },
+  { src: "/covers/shelf/apocalypse.jpg", title: "The Dual Apocalypse" },
+];
 
-function Cover({ src, title, line, frame }: { src: string; title: string; line: string; frame: string }) {
+const HIDDEN = new Set(["bible", "sacred-book", "scholarship", "scholarship-map"]);
+
+function Manuscripts() {
+  const [books, setBooks] = useState<{ slug: string; title: string; line: string; pages: number }[]>([]);
+  useEffect(() => {
+    void fetch("/canon/index.json")
+      .then((res) => res.json())
+      .then((rows: { slug: string; title: string; line: string; pages: number }[]) =>
+        setBooks(rows.filter((book) => !HIDDEN.has(book.slug))),
+      )
+      .catch(() => {});
+  }, []);
+  if (!books.length) return null;
   return (
-    <article className={cn("overflow-hidden border-4 bg-ink shadow-[8px_8px_0_rgba(0,0,0,0.45)]", frame)}>
-      <img src={src} alt="" className="aspect-[2/3] w-full object-cover" />
-      <div className="px-3 py-3">
-        <p className="font-display text-sm uppercase leading-tight">{title}</p>
-        <p className="mt-2 font-mono text-[11px] normal-case leading-relaxed text-paper/60">{line}</p>
-      </div>
-    </article>
+    <ul className="mt-8 divide-y divide-paper/10 border border-paper/10">
+      {books.map((book) => {
+        const open = book.slug === "cos-original" || book.slug === "welcome";
+        return (
+          <li key={book.slug} className="flex items-center justify-between gap-4 px-4 py-4">
+            <span>
+              <span className="block font-display uppercase">{book.title}</span>
+              <span className="mt-1 block font-mono text-[11px] normal-case text-paper/60">{book.line}</span>
+            </span>
+            {open ? (
+              <Link
+                to={book.slug === "welcome" ? "/read/$slug" : "/cos"}
+                params={book.slug === "welcome" ? { slug: "welcome" } : undefined}
+                className="shrink-0 text-[10px] uppercase tracking-wide text-cyan"
+              >
+                Open
+              </Link>
+            ) : (
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-paper/40">Sealed</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-const VOLUME_FRAME = [
-  "border-gold",
-  "border-cyan",
-  "border-orange",
-  "border-paper",
-  "border-lime",
-  "border-pink",
-  "border-gold",
-  "border-cyan",
-  "border-orange",
-];
-
 function Library() {
-  const paid = useTemple((s) => s.paid);
   const read = useTemple((s) => s.read);
-  const role = useTemple((s) => s.role);
-  const path = useTemple((s) => s.path);
-  const joinedAt = useTemple((s) => s.joinedAt);
   const { user } = useCurrentUserState();
-  const access = {
-    signedIn: Boolean(user),
-    paid: paid || path === "initiate" || path === "patron",
-    role,
-    day: daysActive(joinedAt),
-  };
 
   return (
-    <main className="page-cyan bg-ink text-paper">
+    <main className="bg-ink text-paper">
       <ChamberHero
         tone="cyan"
         icon="Library"
-        kicker="The sacred library"
-        title="The living archives"
-        lede={`A canon in five flames.
-Read slowly.
-A single line may take
-a lifetime to decrypt.`}
+        kicker="The house of the texts"
+        title="Sacred Library"
+        titleClassName="text-paper"
+        lede={`Three books are open.
+The rest of the shelf is sealed.`}
       />
 
       <section className="px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <SectionKicker>Here is what is archived</SectionKicker>
-          <h2 className="mt-3 font-display text-title uppercase">The sacred library</h2>
+          <SectionKicker className="text-cyan">On the shelf</SectionKicker>
+          <h2 className="mt-3 font-display text-title uppercase">Sacred Library</h2>
           <p className="mt-3 max-w-2xl font-mono text-[11px] normal-case leading-relaxed text-paper/70">
-            The collected teachings of the Divine Molecule Temple. The Cosmic Operating System is open. A free account opens the seeker readings. The Academy opens the rest of what is written.
+            The Cosmic Operating System, Divine {"<codes/>"}, and Welcome, Seeker are open. The rest of the shelf is sealed.
           </p>
-          <Link to="/archives" className="mt-4 inline-block text-[10px] uppercase tracking-[0.16em] text-cyan">
-            Search the record
-          </Link>
           <VaultBooks />
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {SHELF.map((book) => (
-              <Link key={book.src} to={book.to}>
-                <Cover src={book.src} title={book.title} line={book.line} frame={book.frame} />
-              </Link>
-            ))}
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {FACES.map((face) => {
+              const card = (
+                <article className="overflow-hidden border border-paper/15 bg-ink">
+                  <img src={face.src} alt="" className={`aspect-[2/3] w-full object-cover ${face.to ? "" : "opacity-60"}`} />
+                  <p className="px-3 py-3 font-display text-sm uppercase leading-tight">{face.title}</p>
+                  {face.line ? <p className="px-3 font-mono text-[11px] normal-case text-paper/60">{face.line}</p> : null}
+                  <p className="px-3 pb-3 text-[10px] uppercase tracking-wide text-paper/40">{face.to ? "Open" : "Sealed"}</p>
+                </article>
+              );
+              return face.to ? (
+                <Link key={face.src} to={face.to}>
+                  {card}
+                </Link>
+              ) : (
+                <div key={face.src}>{card}</div>
+              );
+            })}
           </div>
+          <Manuscripts />
         </div>
       </section>
 
       <section className="border-t border-paper/10 px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <SectionKicker>Release map</SectionKicker>
+          <SectionKicker className="text-cyan">Release map</SectionKicker>
           <h2 className="mt-3 font-display text-title uppercase">Who receives which scroll</h2>
           <p className="mt-3 max-w-2xl font-mono text-[11px] normal-case leading-relaxed text-paper/70">
-            One library. Seeker readings open with a free account. The Academy opens the initiate shelf. Priesthood manuals stay with the Chancellor.
+            One shelf. The readings that are written are open. A free account keeps your place.
           </p>
           <ul className="mt-8 divide-y divide-paper/10 border border-paper/10">
-            {SCROLLS.map((scroll) => {
-              const open = scrollUnlocked(scroll, access);
+            {SCROLLS.filter((scroll) => scroll.key !== "scholarship").map((scroll) => {
               const when = scroll.day === 0 ? "Immediate" : `Day ${scroll.day}`;
               return (
                 <li key={scroll.key} className="flex items-center justify-between gap-4 px-5 py-4">
                   <span className="min-w-0">
-                    <span className="text-[10px] uppercase tracking-wide text-orange">
+                    <span className="text-[10px] uppercase tracking-wide text-cyan">
                       {scroll.category} · {scroll.gate} · {when}
                     </span>
                     <span className="mt-1 block font-display uppercase">{scroll.title}</span>
                   </span>
                   <span className="shrink-0 text-[10px] uppercase tracking-wide text-paper/40">
-                    {open ? "Open" : "Sealed gate"}
+                    {scroll.key === "welcome" ? (
+                      <Link to="/read/$slug" params={{ slug: "welcome" }} className="text-cyan">
+                        Open
+                      </Link>
+                    ) : (
+                      "Sealed"
+                    )}
                   </span>
                 </li>
               );
             })}
           </ul>
           {!user ? (
-            <Link to="/register" className="mt-6 inline-flex bg-lime px-4 py-3 text-[11px] uppercase tracking-wide text-ink">
-              Become a seeker
+            <Link to="/register" className="mt-6 inline-flex h-8 items-center bg-cyan px-3 text-[10px] uppercase tracking-wide text-white">
+              Join free
             </Link>
           ) : null}
         </div>
       </section>
 
       <section className="border-t border-paper/10 px-4 py-16 sm:px-6">
-        <div className="mx-auto max-w-6xl">
-          <SectionKicker>Nine volumes</SectionKicker>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {COS_VOLUMES.map((v, i) => {
-              const frame = VOLUME_FRAME[i % VOLUME_FRAME.length];
-              const crest = v.n === "I";
-              const card = (
-                <article className={cn("flex min-h-64 flex-col overflow-hidden border-4 bg-ink", frame || "border-gold")}>
-                  {crest ? (
-                    <img src="/covers/cos.jpg" alt="" className="aspect-[2/3] w-full object-cover object-top" />
-                  ) : (
-                    <div className={cn("grid h-40 place-items-center border-b-4 font-display text-5xl", frame || "border-gold")}>
-                      {v.n}
-                    </div>
-                  )}
-                  <div className="flex flex-1 flex-col p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-paper/50">Volume {v.n}</p>
-                    <h3 className="mt-2 font-display text-xl uppercase leading-none">{v.title}</h3>
-                    <p className="mt-3 text-sm text-paper/60">{v.line}</p>
-                    <p className="mt-auto pt-4 text-[10px] uppercase tracking-wide text-paper/40">
-                      {crest ? "Open" : "Named"}
-                    </p>
-                  </div>
-                </article>
-              );
-              return crest ? (
-                <Link key={v.n} to="/cos">
-                  {card}
-                </Link>
-              ) : (
-                <div key={v.n}>{card}</div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-paper/10 px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <SectionKicker>Source codes · {read.length} examined</SectionKicker>
+          <SectionKicker className="text-cyan">Source codes · {read.length} examined</SectionKicker>
           <ul className="mt-8 divide-y divide-paper/10 border border-paper/10">
-            {SOURCE_CODES.map((c) => {
-              const open = canRead(c.lockedFor, path);
-              return (
-                <li key={c.id}>
-                  <Link
-                    to="/cos"
-                    hash={`source-${c.id}`}
-                    className={cn("flex items-center justify-between gap-4 px-5 py-5 hover:bg-panel", !open && "opacity-60")}
-                  >
-                    <span>
-                      <span className="text-[10px] uppercase tracking-wide text-orange">
-                        {c.volume} · {c.id}
-                      </span>
-                      <span className="mt-1 block font-display uppercase">{c.title}</span>
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wide text-paper/40">
-                      {open ? "Open" : "Academy"}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
+            {SOURCE_CODES.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-4 px-5 py-5">
+                <span>
+                  <span className="text-[10px] uppercase tracking-wide text-cyan">
+                    {c.volume} · {c.id}
+                  </span>
+                  <span className="mt-1 block font-display uppercase">{c.title}</span>
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-paper/40">Sealed</span>
+              </li>
+            ))}
           </ul>
         </div>
       </section>
@@ -207,7 +183,11 @@ function VaultBooks() {
   const [rows, setRows] = useState<VaultRow[]>([]);
   useEffect(() => {
     void listVault({ data: "book" })
-      .then(setRows)
+      .then((rows) =>
+        setRows(
+          rows.filter((row) => !/bible|sacred text|scholarship of the enlightened/i.test(row.title)),
+        ),
+      )
       .catch(() => setRows([]));
   }, []);
   if (!rows.length) return null;
@@ -219,38 +199,10 @@ function VaultBooks() {
           <li key={row.id} className="border-b border-paper/10 px-4 py-4 last:border-b-0">
             <p className="font-display uppercase">{row.title}</p>
             <p className="mt-1 text-[10px] uppercase tracking-wide text-paper/40">{row.gate}</p>
-            {row.open && row.body ? <p className="mt-2 max-w-2xl text-sm text-paper/70">{row.body}</p> : null}
-            {row.open && row.hasFile ? (
-              <button
-                type="button"
-                className="mt-3 text-[10px] uppercase tracking-[0.16em] text-cyan"
-                onClick={() => void openVaultFile(row.id, row.title)}
-              >
-                Open PDF
-              </button>
-            ) : row.open ? null : (
-              <p className="mt-2 text-[10px] uppercase tracking-wide text-paper/40">Held</p>
-            )}
+            <p className="mt-2 text-[10px] uppercase tracking-wide text-paper/40">Sealed</p>
           </li>
         ))}
       </ul>
     </div>
   );
-}
-
-async function openVaultFile(id: string, title: string) {
-  const token = getBearerToken();
-  const res = await fetch(`/api/file/${id}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) return;
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noreferrer";
-  a.download = "";
-  a.title = title;
-  a.click();
 }

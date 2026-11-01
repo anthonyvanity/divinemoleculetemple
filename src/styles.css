@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Outfit:wght@800;900&display=swap");
+/* temple surface */
 @import "tailwindcss";
 
 @theme {
@@ -218,31 +219,6 @@
       drop-shadow(0 1px 0 var(--color-gold-deep))
       drop-shadow(0 0 4px var(--color-gold));
   }
-  .peach-fire {
-    color: #ffb088;
-    border: 1px solid #ff8a5c;
-    background: #0b0b0b;
-    box-shadow: inset 0 1px 0 #ffd2bc;
-    text-shadow: none;
-  }
-  .peach-fire svg {
-    color: #ff8f62;
-    filter: drop-shadow(0 0 3px #ff6a3d);
-  }
-  .peach-fire:hover {
-    color: #ffd2bc;
-    border-color: #ffb088;
-    box-shadow:
-      inset 0 1px 0 #ffe4d6,
-      0 0 12px color-mix(in srgb, #ff7a45 70%, transparent);
-    text-shadow: 0 0 8px color-mix(in srgb, #ff8a5c 65%, transparent);
-  }
-  .peach-fire:hover svg {
-    color: #ffc2a4;
-    filter:
-      drop-shadow(0 0 3px #ff6a3d)
-      drop-shadow(0 0 8px #ff8a5c);
-  }
   .ghost-word {
     font-family: var(--font-display);
     font-size: var(--text-ghost);
@@ -323,6 +299,97 @@
 .temple-wordmark {
   font-size: min(4.2cqi, 3.2rem);
 }
+.desk-plate {
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.38);
+}
+.desk-plate::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.05) 3px
+  );
+  mix-blend-mode: multiply;
+}
+.desk-piece {
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+}
+.desk-piece .chunk,
+.desk-piece .desk-plate,
+.desk-piece .desk-plate > button,
+.desk-piece .desk-open,
+.desk-piece .dash-well {
+  background: transparent !important;
+  color: inherit !important;
+  border-color: transparent;
+}
+.desk-piece[data-live="1"][data-tone="orange"] {
+  background: var(--color-orange);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="lime"] {
+  background: var(--color-lime);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="cyan"] {
+  background: var(--color-cyan);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="lilac"] {
+  background: var(--color-lilac);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="pink"] {
+  background: var(--color-pink);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="canary"] {
+  background: var(--color-canary);
+  color: #141414;
+  border-color: #141414;
+}
+.desk-piece[data-live="1"][data-tone="paper"] {
+  background: var(--color-paper);
+  color: #141414;
+  border-color: #141414;
+}
+.dash-dark .desk-plate,
+.dash-dark .desk-plate > button,
+.dash-dark .desk-open {
+  background: #000;
+}
+.dash-light .dash-well {
+  background: #f6f1e6;
+  border-color: rgba(0, 0, 0, 0.16);
+}
+.dash-dark .dash-well {
+  background: #141414;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.chunk {
+  position: relative;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+}
+.plate-type {
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 0 rgba(0, 0, 0, 0.55),
+    1px 1px 0 rgba(0, 0, 0, 0.2);
+}
 
 .flame-caret {
   display: inline-block;
@@ -358,6 +425,62 @@
   }
 }
 
+@keyframes monday-float {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.85), 0 0 0 0 rgba(198, 255, 0, 0.35);
+  }
+  50% {
+    transform: translateY(-5px);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.85), 0 0 16px 2px rgba(198, 255, 0, 0.55);
+  }
+}
+.monday-live {
+  animation: monday-float 3.2s ease-in-out infinite;
+}
+@keyframes monday-talk {
+  0% {
+    box-shadow: 0 0 0 0 rgba(198, 255, 0, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(198, 255, 0, 0);
+  }
+}
+.monday-talk {
+  animation: monday-talk 1s ease-out infinite;
+}
+.monday-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.monday-eq i {
+  display: block;
+  width: 2px;
+  height: 4px;
+  background: #c6ff00;
+  animation: monday-eq 0.7s ease-in-out infinite;
+}
+.monday-eq i:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.monday-eq i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.monday-eq i:nth-child(4) {
+  animation-delay: 0.36s;
+}
+@keyframes monday-eq {
+  0%,
+  100% {
+    height: 3px;
+  }
+  50% {
+    height: 12px;
+  }
+}
 @keyframes section-rise {
   from {
     opacity: 0.4;

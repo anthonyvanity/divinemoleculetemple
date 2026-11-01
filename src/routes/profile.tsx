@@ -18,6 +18,7 @@ import {
 } from "@/lib/temple-content";
 import { displayHandle, givenTotal, useTemple } from "@/lib/temple-store";
 import { scholarshipCourse } from "@/lib/scholarship";
+import { covenantState, setListed } from "@/lib/covenant";
 import { requestCardMail, saveAvatar, saveProfile, ensureMember, listFriends } from "@/lib/temple-data";
 import { cn } from "@/lib/utils";
 import { FirstTour } from "@/components/first-tour";
@@ -43,6 +44,7 @@ function Profile() {
   const portrait = useTemple((s) => s.portrait);
   const setPortrait = useTemple((s) => s.setPortrait);
   const { user } = useCurrentUserState();
+  const [listed, setListedOn] = useState(true);
   const [friends, setFriends] = useState<{ userId: string; handle: string; avatarUrl: string }[]>([]);
   const given = givenTotal(offerings);
   const name = displayHandle(handle, flameName);
@@ -63,6 +65,7 @@ function Profile() {
     void listFriends({ data: user.id })
       .then(setFriends)
       .catch(() => setFriends([]));
+    void covenantState().then((state) => setListedOn(state.listed)).catch(() => {});
   }, [user?.id, setPortrait]);
 
   function changePicture(file: File | undefined) {
@@ -99,6 +102,13 @@ function Profile() {
         </button>
       </div>
       <div className="rainbow-bar h-1" />
+      <nav className="flex gap-3 overflow-x-auto px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-lime sm:px-6">
+        <Link to="/practice">Daily practice</Link>
+        <Link to="/notices">Notifications</Link>
+        <Link to="/gates">Membership</Link>
+        <Link to="/my-classes">Scholarship</Link>
+        <Link to="/monday">Monday</Link>
+      </nav>
 
       <section className="px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-4xl overflow-hidden border border-lime/40 p-6 sm:p-8">
@@ -116,11 +126,6 @@ function Profile() {
                 />
               </label>
             </div>
-            <img
-              src="/crest-wings.webp"
-              alt="Divine Molecule Temple"
-              className="h-20 w-auto max-w-[min(100%,20rem)] object-contain sm:h-24"
-            />
             <div className="min-w-0 flex-1 overflow-hidden">
               <label className="block">
                 <span className="sr-only">Handle</span>
@@ -145,14 +150,16 @@ function Profile() {
                   Given ${given}
                 </span>
               </div>
-              <label className="mt-4 inline-flex cursor-pointer text-[11px] uppercase tracking-wide text-lime">
-                Change picture
+              <label className="mt-4 flex items-center gap-2 text-[11px] uppercase tracking-wide text-paper/70">
                 <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(e) => changePicture(e.target.files?.[0])}
+                  type="checkbox"
+                  checked={listed}
+                  onChange={(e) => {
+                    setListedOn(e.target.checked);
+                    void setListed({ data: e.target.checked });
+                  }}
                 />
+                Show this profile in the congregation. Uncheck to hide it. Your legal name and email are never shown here.
               </label>
             </div>
           </div>

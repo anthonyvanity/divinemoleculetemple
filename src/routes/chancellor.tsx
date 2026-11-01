@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RedirectToSignIn } from "@/lib/auth/gates";
@@ -61,8 +61,11 @@ function Desk() {
     return (
       <main className="mx-auto max-w-lg bg-ink px-4 py-20 text-paper">
         <p className="font-display text-3xl uppercase">Chancellor desk</p>
+        <Link to="/admin" className="mt-3 inline-flex text-[10px] uppercase tracking-[0.14em] text-lime">
+          Temple Command
+        </Link>
         <p className="mt-3 text-sm text-paper/60">
-          Sign in, then speak the house phrase once. After that, only you hold the keys: tiers, scholarships, discounts, and the mail queue.
+          Sign in, then speak the house phrase. It opens Temple Command for this account, even if another login held the desk before.
         </p>
         <form
           className="mt-8"
@@ -72,6 +75,7 @@ function Desk() {
             void claimChancellor({ data: phrase })
               .then(() => {
                 setAccess({ paid: true, role: "chancellor", path: path === "none" ? "initiate" : path });
+                window.location.assign("/admin");
               })
               .catch((error: Error) => setErr(error.message || "Rejected"));
           }}
@@ -101,6 +105,7 @@ function Desk() {
           Membership, Stripe, join requests, books, rituals, transmissions, and blasts live here. Every letter leaves from {CONTACT_EMAIL}.
         </p>
         <nav className="mt-4 flex flex-wrap gap-3 text-[10px] uppercase tracking-[0.16em] text-lime">
+          <Link to="/admin">Temple Command</Link>
           <a href="#members">Members</a>
           <a href="#mail">Mail</a>
           <a href="#shop-orders">Orders</a>

@@ -1,20 +1,8 @@
-/* Fog node — cache on the operator's device, between CDN and origin. */
-const CACHE = "dmt-fog-v3";
-const PRECACHE = [
-  "/hero-crest.jpg",
-  "/hex-seal.webp",
-  "/flame-gold.webp",
-  "/halo.jpg",
-];
+/* Fog node — images only. Never cache HTML, CSS, or scripts. */
+const CACHE = "dmt-fog-v4";
+const PRECACHE = ["/hero-crest.jpg", "/hex-seal.webp", "/flame-gold.webp", "/halo.jpg"];
 
-const LIVE = new Set([
-  "/login",
-  "/register",
-  "/dashboard",
-  "/profile",
-  "/nexus",
-  "/leaderboard",
-]);
+const LIVE = new Set(["/login", "/register", "/dashboard", "/profile", "/nexus", "/leaderboard"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -29,13 +17,15 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => caches.open(CACHE))
+      .then((cache) => cache.addAll(PRECACHE))
       .then(() => self.clients.claim()),
   );
 });
 
 function isLivePath(pathname) {
-  if (pathname.startsWith("/api")) return true;
+  if (pathname.startsWith("/api") || pathname.startsWith("/assets")) return true;
   return LIVE.has(pathname);
 }
 
@@ -45,28 +35,21 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (isLivePath(url.pathname)) return;
+  if (req.mode === "navigate" || req.destination === "style" || req.destination === "script") return;
 
-  if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match("/") || caches.match("/hero-crest.jpg")));
-    return;
-  }
-
-  const dest = req.destination;
-  const staticAsset =
-    dest === "image" ||
-    dest === "audio" ||
-    dest === "video" ||
-    dest === "font" ||
-    dest === "style" ||
-    /\.(?:jpg|jpeg|png|webp|gif|svg|mp3|mp4|woff2)$/i.test(url.pathname);
-  if (!staticAsset) return;
+  const image =
+    req.destination === "image" ||
+    req.destination === "font" ||
+    /\.(?:jpg|jpeg|png|webp|gif|svg|woff2)$/i.test(url.pathname);
+  if (!image) return;
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const hit = await cache.match(req);
       if (hit) return hit;
       const res = await fetch(req);
-      if (res.ok) cache.put(req, res.clone());
+      const type = res.headers.get("content-type") || "";
+      if (res.ok && (type.startsWith("image/") || type.startsWith("font/"))) cache.put(req, res.clone());
       return res;
     }),
   );

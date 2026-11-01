@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { ensureMember, listClassNotes, listReadings } from "@/lib/temple-data";
+import { ensureMember, getDesk, listClassNotes, listReadings } from "@/lib/temple-data";
 import { confirmStripeSession } from "@/lib/stripe-temple";
 import type { PathId } from "@/lib/temple-content";
 import { useTemple } from "@/lib/temple-store";
@@ -29,11 +29,14 @@ export function AccessSync() {
       const m = await ensureMember();
       const notes = await listClassNotes().catch(() => null);
       const marks = await listReadings().catch(() => null);
+      const desk = await getDesk().catch(() => null);
       if (stop) return;
       const tier = m.membership?.tier ?? "seeker";
       const scholarship = Boolean(m.membership?.scholarship);
-      const paid = scholarship || tier === "initiate" || tier === "patron";
-      const path = (TIERS.has(tier) ? tier : "seeker") as PathId;
+      const suspended = Boolean(m.membership?.suspended);
+      const expired = m.membership?.billing_status === "expired";
+      const paid = !suspended && !expired && (scholarship || tier === "initiate" || tier === "patron");
+      const path = (suspended || expired ? "seeker" : TIERS.has(tier) ? tier : "seeker") as PathId;
       const classNotes = notes
         ? Object.fromEntries(notes.filter((n) => n.body.trim()).map((n) => [n.code, [{ id: n.code, x: 0, y: 0, body: n.body }]]))
         : undefined;
@@ -52,6 +55,13 @@ export function AccessSync() {
         read: (m.progress ?? []).map((row) => row.node_id).filter((id) => id && !id.startsWith("reader:")),
         ...(classNotes ? { classNotes } : {}),
         ...(bookmarks ? { bookmarks } : {}),
+        ...(desk
+          ? {
+              lastClass: desk.lastClass || useTemple.getState().lastClass,
+              deskSchedule: desk.schedule,
+              deskPractice: desk.practice,
+            }
+          : {}),
       });
     })().catch(() => {});
     return () => {

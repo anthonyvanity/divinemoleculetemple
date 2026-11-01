@@ -33,6 +33,17 @@ Where the old craft meets
 the new operating system.`}
       />
 
+      <section className="border-b border-lime/30 px-4 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-3xl flex-wrap gap-3">
+          <Link to="/read/$slug" params={{ slug: "rites" }} className="inline-flex h-8 items-center border border-lime px-3 text-[10px] uppercase tracking-wide text-lime">
+            Blessings, sealing, deconsecration
+          </Link>
+          <Link to="/read/$slug" params={{ slug: "priest" }} className="inline-flex h-8 items-center border border-lime px-3 text-[10px] uppercase tracking-wide text-lime">
+            Priest protocol
+          </Link>
+        </div>
+      </section>
+
       <section className="border-b border-lime/30 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-3xl">
           <SectionKicker>The daily rite</SectionKicker>
@@ -103,7 +114,9 @@ the new operating system.`}
                   Log rite
                 </Button>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wide text-paper/40">Paid membership</span>
+                  <Link to="/register" className="text-[10px] uppercase tracking-wide text-lime">
+                    Join to keep this rite
+                  </Link>
                 )}
               </li>
             ))}

@@ -14,6 +14,7 @@ import { Route as Anthony_VanityRouteImport } from './routes/Anthony_Vanity'
 import { Route as ChancellorMondayRouteImport } from './routes/ChancellorMonday'
 import { Route as HighPriestRouteImport } from './routes/HighPriest'
 import { Route as AcademyRouteImport } from './routes/academy'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AltarRouteImport } from './routes/altar'
 import { Route as Anthony_vanityRouteImport } from './routes/anthony_vanity'
 import { Route as ArchivesRouteImport } from './routes/archives'
@@ -23,6 +24,7 @@ import { Route as CeremoniesRouteImport } from './routes/ceremonies'
 import { Route as ChancellorRouteImport } from './routes/chancellor'
 import { Route as ChancellormondayRouteImport } from './routes/chancellormonday'
 import { Route as ClassesRouteImport } from './routes/classes'
+import { Route as CodesRouteImport } from './routes/codes'
 import { Route as CompilerRouteImport } from './routes/compiler'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CosRouteImport } from './routes/cos'
@@ -35,7 +37,12 @@ import { Route as HousingRouteImport } from './routes/housing'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MondayRouteImport } from './routes/monday'
+import { Route as MyClassesRouteImport } from './routes/my-classes'
 import { Route as NexusRouteImport } from './routes/nexus'
+import { Route as NoticesRouteImport } from './routes/notices'
+import { Route as OrientationRouteImport } from './routes/orientation'
+import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SanctuaryRouteImport } from './routes/sanctuary'
@@ -51,9 +58,12 @@ import { Route as AcademyCodesRouteImport } from './routes/academy.codes'
 import { Route as AcademySyntheticRouteImport } from './routes/academy.synthetic'
 import { Route as ArchiveSlugRouteImport } from './routes/archive.$slug'
 import { Route as AuthBridgeRouteImport } from './routes/auth.bridge'
+import { Route as AuthStartRouteImport } from './routes/auth.start'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as MemberUserIdRouteImport } from './routes/member.$userId'
 import { Route as ProgramSlugRouteImport } from './routes/program.$slug'
+import { Route as ReadSlugRouteImport } from './routes/read.$slug'
+import { Route as RiteIdRouteImport } from './routes/rite.$id'
 import { Route as ApiAudioIdRouteImport } from './routes/api/audio/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiFileIdRouteImport } from './routes/api/file/$id'
@@ -82,6 +92,11 @@ const HighPriestRoute = HighPriestRouteImport.update({
 const AcademyRoute = AcademyRouteImport.update({
   id: '/academy',
   path: '/academy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AltarRoute = AltarRouteImport.update({
@@ -127,6 +142,11 @@ const ChancellormondayRoute = ChancellormondayRouteImport.update({
 const ClassesRoute = ClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodesRoute = CodesRouteImport.update({
+  id: '/codes',
+  path: '/codes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompilerRoute = CompilerRouteImport.update({
@@ -189,9 +209,34 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MondayRoute = MondayRouteImport.update({
+  id: '/monday',
+  path: '/monday',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyClassesRoute = MyClassesRouteImport.update({
+  id: '/my-classes',
+  path: '/my-classes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NexusRoute = NexusRouteImport.update({
   id: '/nexus',
   path: '/nexus',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticesRoute = NoticesRouteImport.update({
+  id: '/notices',
+  path: '/notices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrientationRoute = OrientationRouteImport.update({
+  id: '/orientation',
+  path: '/orientation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PracticeRoute = PracticeRouteImport.update({
+  id: '/practice',
+  path: '/practice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -269,6 +314,11 @@ const AuthBridgeRoute = AuthBridgeRouteImport.update({
   path: '/auth/bridge',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthStartRoute = AuthStartRouteImport.update({
+  id: '/auth/start',
+  path: '/auth/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LegalSlugRoute = LegalSlugRouteImport.update({
   id: '/legal/$slug',
   path: '/legal/$slug',
@@ -282,6 +332,16 @@ const MemberUserIdRoute = MemberUserIdRouteImport.update({
 const ProgramSlugRoute = ProgramSlugRouteImport.update({
   id: '/program/$slug',
   path: '/program/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReadSlugRoute = ReadSlugRouteImport.update({
+  id: '/read/$slug',
+  path: '/read/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RiteIdRoute = RiteIdRouteImport.update({
+  id: '/rite/$id',
+  path: '/rite/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAudioIdRoute = ApiAudioIdRouteImport.update({
@@ -311,6 +371,7 @@ export interface FileRoutesByFullPath {
   '/ChancellorMonday': typeof ChancellorMondayRoute
   '/HighPriest': typeof HighPriestRoute
   '/academy': typeof AcademyRouteWithChildren
+  '/admin': typeof AdminRoute
   '/altar': typeof AltarRoute
   '/anthony_vanity': typeof Anthony_vanityRoute
   '/archives': typeof ArchivesRoute
@@ -320,6 +381,7 @@ export interface FileRoutesByFullPath {
   '/chancellor': typeof ChancellorRoute
   '/chancellormonday': typeof ChancellormondayRoute
   '/classes': typeof ClassesRoute
+  '/codes': typeof CodesRoute
   '/compiler': typeof CompilerRoute
   '/contact': typeof ContactRoute
   '/cos': typeof CosRoute
@@ -332,7 +394,12 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof LeaderboardRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/monday': typeof MondayRoute
+  '/my-classes': typeof MyClassesRoute
   '/nexus': typeof NexusRoute
+  '/notices': typeof NoticesRoute
+  '/orientation': typeof OrientationRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/sanctuary': typeof SanctuaryRoute
@@ -347,9 +414,12 @@ export interface FileRoutesByFullPath {
   '/academy/synthetic': typeof AcademySyntheticRoute
   '/archive/$slug': typeof ArchiveSlugRoute
   '/auth/bridge': typeof AuthBridgeRoute
+  '/auth/start': typeof AuthStartRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/member/$userId': typeof MemberUserIdRoute
   '/program/$slug': typeof ProgramSlugRoute
+  '/read/$slug': typeof ReadSlugRoute
+  '/rite/$id': typeof RiteIdRoute
   '/academy/': typeof AcademyIndexRoute
   '/api/audio/$id': typeof ApiAudioIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -361,6 +431,7 @@ export interface FileRoutesByTo {
   '/Anthony_Vanity': typeof Anthony_VanityRoute
   '/ChancellorMonday': typeof ChancellorMondayRoute
   '/HighPriest': typeof HighPriestRoute
+  '/admin': typeof AdminRoute
   '/altar': typeof AltarRoute
   '/anthony_vanity': typeof Anthony_vanityRoute
   '/archives': typeof ArchivesRoute
@@ -370,6 +441,7 @@ export interface FileRoutesByTo {
   '/chancellor': typeof ChancellorRoute
   '/chancellormonday': typeof ChancellormondayRoute
   '/classes': typeof ClassesRoute
+  '/codes': typeof CodesRoute
   '/compiler': typeof CompilerRoute
   '/contact': typeof ContactRoute
   '/cos': typeof CosRoute
@@ -382,7 +454,12 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof LeaderboardRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/monday': typeof MondayRoute
+  '/my-classes': typeof MyClassesRoute
   '/nexus': typeof NexusRoute
+  '/notices': typeof NoticesRoute
+  '/orientation': typeof OrientationRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/sanctuary': typeof SanctuaryRoute
@@ -397,9 +474,12 @@ export interface FileRoutesByTo {
   '/academy/synthetic': typeof AcademySyntheticRoute
   '/archive/$slug': typeof ArchiveSlugRoute
   '/auth/bridge': typeof AuthBridgeRoute
+  '/auth/start': typeof AuthStartRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/member/$userId': typeof MemberUserIdRoute
   '/program/$slug': typeof ProgramSlugRoute
+  '/read/$slug': typeof ReadSlugRoute
+  '/rite/$id': typeof RiteIdRoute
   '/academy': typeof AcademyIndexRoute
   '/api/audio/$id': typeof ApiAudioIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -413,6 +493,7 @@ export interface FileRoutesById {
   '/ChancellorMonday': typeof ChancellorMondayRoute
   '/HighPriest': typeof HighPriestRoute
   '/academy': typeof AcademyRouteWithChildren
+  '/admin': typeof AdminRoute
   '/altar': typeof AltarRoute
   '/anthony_vanity': typeof Anthony_vanityRoute
   '/archives': typeof ArchivesRoute
@@ -422,6 +503,7 @@ export interface FileRoutesById {
   '/chancellor': typeof ChancellorRoute
   '/chancellormonday': typeof ChancellormondayRoute
   '/classes': typeof ClassesRoute
+  '/codes': typeof CodesRoute
   '/compiler': typeof CompilerRoute
   '/contact': typeof ContactRoute
   '/cos': typeof CosRoute
@@ -434,7 +516,12 @@ export interface FileRoutesById {
   '/leaderboard': typeof LeaderboardRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
+  '/monday': typeof MondayRoute
+  '/my-classes': typeof MyClassesRoute
   '/nexus': typeof NexusRoute
+  '/notices': typeof NoticesRoute
+  '/orientation': typeof OrientationRoute
+  '/practice': typeof PracticeRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/sanctuary': typeof SanctuaryRoute
@@ -449,9 +536,12 @@ export interface FileRoutesById {
   '/academy/synthetic': typeof AcademySyntheticRoute
   '/archive/$slug': typeof ArchiveSlugRoute
   '/auth/bridge': typeof AuthBridgeRoute
+  '/auth/start': typeof AuthStartRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/member/$userId': typeof MemberUserIdRoute
   '/program/$slug': typeof ProgramSlugRoute
+  '/read/$slug': typeof ReadSlugRoute
+  '/rite/$id': typeof RiteIdRoute
   '/academy/': typeof AcademyIndexRoute
   '/api/audio/$id': typeof ApiAudioIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -466,6 +556,7 @@ export interface FileRouteTypes {
     | '/ChancellorMonday'
     | '/HighPriest'
     | '/academy'
+    | '/admin'
     | '/altar'
     | '/anthony_vanity'
     | '/archives'
@@ -475,6 +566,7 @@ export interface FileRouteTypes {
     | '/chancellor'
     | '/chancellormonday'
     | '/classes'
+    | '/codes'
     | '/compiler'
     | '/contact'
     | '/cos'
@@ -487,7 +579,12 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/library'
     | '/login'
+    | '/monday'
+    | '/my-classes'
     | '/nexus'
+    | '/notices'
+    | '/orientation'
+    | '/practice'
     | '/profile'
     | '/register'
     | '/sanctuary'
@@ -502,9 +599,12 @@ export interface FileRouteTypes {
     | '/academy/synthetic'
     | '/archive/$slug'
     | '/auth/bridge'
+    | '/auth/start'
     | '/legal/$slug'
     | '/member/$userId'
     | '/program/$slug'
+    | '/read/$slug'
+    | '/rite/$id'
     | '/academy/'
     | '/api/audio/$id'
     | '/api/auth/$'
@@ -516,6 +616,7 @@ export interface FileRouteTypes {
     | '/Anthony_Vanity'
     | '/ChancellorMonday'
     | '/HighPriest'
+    | '/admin'
     | '/altar'
     | '/anthony_vanity'
     | '/archives'
@@ -525,6 +626,7 @@ export interface FileRouteTypes {
     | '/chancellor'
     | '/chancellormonday'
     | '/classes'
+    | '/codes'
     | '/compiler'
     | '/contact'
     | '/cos'
@@ -537,7 +639,12 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/library'
     | '/login'
+    | '/monday'
+    | '/my-classes'
     | '/nexus'
+    | '/notices'
+    | '/orientation'
+    | '/practice'
     | '/profile'
     | '/register'
     | '/sanctuary'
@@ -552,9 +659,12 @@ export interface FileRouteTypes {
     | '/academy/synthetic'
     | '/archive/$slug'
     | '/auth/bridge'
+    | '/auth/start'
     | '/legal/$slug'
     | '/member/$userId'
     | '/program/$slug'
+    | '/read/$slug'
+    | '/rite/$id'
     | '/academy'
     | '/api/audio/$id'
     | '/api/auth/$'
@@ -567,6 +677,7 @@ export interface FileRouteTypes {
     | '/ChancellorMonday'
     | '/HighPriest'
     | '/academy'
+    | '/admin'
     | '/altar'
     | '/anthony_vanity'
     | '/archives'
@@ -576,6 +687,7 @@ export interface FileRouteTypes {
     | '/chancellor'
     | '/chancellormonday'
     | '/classes'
+    | '/codes'
     | '/compiler'
     | '/contact'
     | '/cos'
@@ -588,7 +700,12 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/library'
     | '/login'
+    | '/monday'
+    | '/my-classes'
     | '/nexus'
+    | '/notices'
+    | '/orientation'
+    | '/practice'
     | '/profile'
     | '/register'
     | '/sanctuary'
@@ -603,9 +720,12 @@ export interface FileRouteTypes {
     | '/academy/synthetic'
     | '/archive/$slug'
     | '/auth/bridge'
+    | '/auth/start'
     | '/legal/$slug'
     | '/member/$userId'
     | '/program/$slug'
+    | '/read/$slug'
+    | '/rite/$id'
     | '/academy/'
     | '/api/audio/$id'
     | '/api/auth/$'
@@ -619,6 +739,7 @@ export interface RootRouteChildren {
   ChancellorMondayRoute: typeof ChancellorMondayRoute
   HighPriestRoute: typeof HighPriestRoute
   AcademyRoute: typeof AcademyRouteWithChildren
+  AdminRoute: typeof AdminRoute
   AltarRoute: typeof AltarRoute
   Anthony_vanityRoute: typeof Anthony_vanityRoute
   ArchivesRoute: typeof ArchivesRoute
@@ -628,6 +749,7 @@ export interface RootRouteChildren {
   ChancellorRoute: typeof ChancellorRoute
   ChancellormondayRoute: typeof ChancellormondayRoute
   ClassesRoute: typeof ClassesRoute
+  CodesRoute: typeof CodesRoute
   CompilerRoute: typeof CompilerRoute
   ContactRoute: typeof ContactRoute
   CosRoute: typeof CosRoute
@@ -640,7 +762,12 @@ export interface RootRouteChildren {
   LeaderboardRoute: typeof LeaderboardRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
+  MondayRoute: typeof MondayRoute
+  MyClassesRoute: typeof MyClassesRoute
   NexusRoute: typeof NexusRoute
+  NoticesRoute: typeof NoticesRoute
+  OrientationRoute: typeof OrientationRoute
+  PracticeRoute: typeof PracticeRoute
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   SanctuaryRoute: typeof SanctuaryRoute
@@ -651,9 +778,12 @@ export interface RootRouteChildren {
   WorksRoute: typeof WorksRoute
   ArchiveSlugRoute: typeof ArchiveSlugRoute
   AuthBridgeRoute: typeof AuthBridgeRoute
+  AuthStartRoute: typeof AuthStartRoute
   LegalSlugRoute: typeof LegalSlugRoute
   MemberUserIdRoute: typeof MemberUserIdRoute
   ProgramSlugRoute: typeof ProgramSlugRoute
+  ReadSlugRoute: typeof ReadSlugRoute
+  RiteIdRoute: typeof RiteIdRoute
   ApiAudioIdRoute: typeof ApiAudioIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiFileIdRoute: typeof ApiFileIdRoute
@@ -695,6 +825,13 @@ declare module '@tanstack/react-router' {
       path: '/academy'
       fullPath: '/academy'
       preLoaderRoute: typeof AcademyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/altar': {
@@ -758,6 +895,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/classes'
       preLoaderRoute: typeof ClassesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/codes': {
+      id: '/codes'
+      path: '/codes'
+      fullPath: '/codes'
+      preLoaderRoute: typeof CodesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compiler': {
@@ -844,11 +988,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monday': {
+      id: '/monday'
+      path: '/monday'
+      fullPath: '/monday'
+      preLoaderRoute: typeof MondayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-classes': {
+      id: '/my-classes'
+      path: '/my-classes'
+      fullPath: '/my-classes'
+      preLoaderRoute: typeof MyClassesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nexus': {
       id: '/nexus'
       path: '/nexus'
       fullPath: '/nexus'
       preLoaderRoute: typeof NexusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notices': {
+      id: '/notices'
+      path: '/notices'
+      fullPath: '/notices'
+      preLoaderRoute: typeof NoticesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orientation': {
+      id: '/orientation'
+      path: '/orientation'
+      fullPath: '/orientation'
+      preLoaderRoute: typeof OrientationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/practice': {
+      id: '/practice'
+      path: '/practice'
+      fullPath: '/practice'
+      preLoaderRoute: typeof PracticeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -956,6 +1135,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthBridgeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/start': {
+      id: '/auth/start'
+      path: '/auth/start'
+      fullPath: '/auth/start'
+      preLoaderRoute: typeof AuthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/legal/$slug': {
       id: '/legal/$slug'
       path: '/legal/$slug'
@@ -975,6 +1161,20 @@ declare module '@tanstack/react-router' {
       path: '/program/$slug'
       fullPath: '/program/$slug'
       preLoaderRoute: typeof ProgramSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/read/$slug': {
+      id: '/read/$slug'
+      path: '/read/$slug'
+      fullPath: '/read/$slug'
+      preLoaderRoute: typeof ReadSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rite/$id': {
+      id: '/rite/$id'
+      path: '/rite/$id'
+      fullPath: '/rite/$id'
+      preLoaderRoute: typeof RiteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/audio/$id': {
@@ -1033,6 +1233,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChancellorMondayRoute: ChancellorMondayRoute,
   HighPriestRoute: HighPriestRoute,
   AcademyRoute: AcademyRouteWithChildren,
+  AdminRoute: AdminRoute,
   AltarRoute: AltarRoute,
   Anthony_vanityRoute: Anthony_vanityRoute,
   ArchivesRoute: ArchivesRoute,
@@ -1042,6 +1243,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChancellorRoute: ChancellorRoute,
   ChancellormondayRoute: ChancellormondayRoute,
   ClassesRoute: ClassesRoute,
+  CodesRoute: CodesRoute,
   CompilerRoute: CompilerRoute,
   ContactRoute: ContactRoute,
   CosRoute: CosRoute,
@@ -1054,7 +1256,12 @@ const rootRouteChildren: RootRouteChildren = {
   LeaderboardRoute: LeaderboardRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
+  MondayRoute: MondayRoute,
+  MyClassesRoute: MyClassesRoute,
   NexusRoute: NexusRoute,
+  NoticesRoute: NoticesRoute,
+  OrientationRoute: OrientationRoute,
+  PracticeRoute: PracticeRoute,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   SanctuaryRoute: SanctuaryRoute,
@@ -1065,9 +1272,12 @@ const rootRouteChildren: RootRouteChildren = {
   WorksRoute: WorksRoute,
   ArchiveSlugRoute: ArchiveSlugRoute,
   AuthBridgeRoute: AuthBridgeRoute,
+  AuthStartRoute: AuthStartRoute,
   LegalSlugRoute: LegalSlugRoute,
   MemberUserIdRoute: MemberUserIdRoute,
   ProgramSlugRoute: ProgramSlugRoute,
+  ReadSlugRoute: ReadSlugRoute,
+  RiteIdRoute: RiteIdRoute,
   ApiAudioIdRoute: ApiAudioIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiFileIdRoute: ApiFileIdRoute,

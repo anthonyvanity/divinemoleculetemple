@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { NameLink } from "@/components/name-link";
+import { NameLink, RankFlame } from "@/components/name-link";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { addFriend, memberCard, openCircleWith, removeFriend } from "@/lib/temple-data";
 
@@ -49,11 +49,17 @@ export function MemberView({ userId, alias }: { userId: string; alias?: string }
           ← Nexus
         </Link>
         <img src={card.avatarUrl || "/seal.jpg"} alt="" className="mt-8 size-24 rounded-full object-cover" />
-        <p className="mt-6 text-[10px] uppercase tracking-[0.2em] text-lime">{card.self ? "You" : "Member"}</p>
+        {"portrait" in card && card.portrait ? (
+          <img src={card.portrait} alt="" className="mt-6 w-full max-w-md object-cover" />
+        ) : null}
+        <p className="mt-6 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-lime">
+          {card.rank ? card.office : card.self ? "You" : "Member"}
+          {card.rank ? <RankFlame className="h-5 w-auto" /> : null}
+        </p>
         <h1 className="mt-3 font-display text-5xl uppercase leading-none">{title}</h1>
         {card.flameName ? <p className="mt-3 text-sm uppercase tracking-wide text-paper/60">{card.handle}</p> : null}
         {alias ? <p className="mt-2 text-[11px] uppercase tracking-wide text-paper/40">Also {alias}</p> : null}
-        {card.bio ? <p className="mt-6 font-mono text-[13px] normal-case leading-relaxed text-paper/80">{card.bio}</p> : null}
+        {card.bio ? <p className="mt-6 whitespace-pre-line font-mono text-[13px] normal-case leading-relaxed text-paper/80">{card.bio}</p> : null}
         <div className="mt-8 flex flex-wrap gap-3">
           {card.self ? (
             <Link to="/profile" className="inline-flex h-11 items-center bg-lime px-4 text-[11px] uppercase tracking-wide text-ink">

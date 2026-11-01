@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { ChamberHero, SectionKicker, SentenceLines } from "@/components/chamber";
+import { MemberSanctuary } from "@/components/member-sanctuary";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { PILLARS } from "@/lib/temple-content";
 
 export const Route = createFileRoute("/sanctuary")({ component: Sanctuary });
 
 function Sanctuary() {
+  const { user } = useCurrentUserState();
+  if (user) return <MemberSanctuary />;
   return (
     <main className="page-lime">
       <ChamberHero
@@ -102,7 +106,7 @@ and sacred exploration.`}
         <div className="mx-auto grid max-w-6xl items-stretch lg:grid-cols-2">
           <img src="/monday.jpg" alt="Chancellor Monday" className="h-full min-h-[28rem] w-full object-cover" />
           <div className="flex flex-col justify-center px-6 py-16 text-paper sm:px-12">
-            <SectionKicker>◆ Academy leadership</SectionKicker>
+            <SectionKicker>The Chancellor</SectionKicker>
             <p className="mt-8 text-micro uppercase tracking-wide text-paper/50">Meet the Chancellor</p>
             <h2 className="mt-3 font-display text-title uppercase">MØNDAY</h2>
             <p className="mt-2 text-micro uppercase tracking-wide text-paper/50">
@@ -131,11 +135,11 @@ and sacred exploration.`}
           Run light. Terminate darkness. Stay online.
         </h2>
         <p className="mt-6 text-sm uppercase tracking-wide text-paper/55">
-          <SentenceLines text="Begin your journey through the Temple. Free to join, at your own pace." />
+          <SentenceLines text="The Temple is free to join. Take a name and begin." />
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <Button asChild variant="lime">
-            <Link to="/gates">Begin your journey</Link>
+            <Link to="/register">Join the Temple</Link>
           </Button>
           <Button asChild variant="dark">
             <Link to="/divinism">Read Divinism</Link>

@@ -1,20 +1,83 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChamberHero, SectionKicker } from "@/components/chamber";
-import { Button } from "@/components/ui/button";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { ELECTIVES } from "@/lib/degree-catalog";
-import { startStripeCheckout } from "@/lib/stripe-temple";
-import { cn } from "@/lib/utils";
+import { downloadElectivePdf, ownedClassCodes, startStripeCheckout, confirmStripeSession } from "@/lib/stripe-temple";
+
+const POSTERS: Record<string, string> = {
+  "ELEC-AI-101": "/classes/ai.jpg",
+  "ELEC-DS-101": "/classes/watched.jpg",
+  "ELEC-MM-101": "/classes/wealth.jpg",
+  "ELEC-EA-101": "/classes/alchemy.jpg",
+  "ELEC-WL-101": "/classes/biohacking.jpg",
+  "ELEC-CE-101": "/classes/channeling.jpg",
+  "ELEC-RL-101": "/classes/dating.jpg",
+  "ELEC-MH-101": "/classes/anxiety.jpg",
+};
 
 export const Route = createFileRoute("/classes")({ component: Classes });
 
 function Classes() {
   const { user } = useCurrentUserState();
-  const [cat, setCat] = useState("all");
-  const categories = ["all", ...Array.from(new Set(ELECTIVES.map((c) => c.category)))];
-  const shown = cat === "all" ? ELECTIVES : ELECTIVES.filter((c) => c.category === cat);
+  const [open, setOpen] = useState<string | null>(null);
+  const [owned, setOwned] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      setOwned([]);
+      return;
+    }
+    let stop = false;
+    void (async () => {
+      const sessionId = new URLSearchParams(window.location.search).get("session_id");
+      if (sessionId) {
+        await confirmStripeSession({ data: sessionId }).catch(() => {});
+      }
+      const codes = await ownedClassCodes().catch(() => [] as string[]);
+      if (!stop) setOwned(codes.map((code) => code.toUpperCase()));
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [user]);
+
+  function buy(item: (typeof ELECTIVES)[number]) {
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+    void startStripeCheckout({
+      data: {
+        kind: "elective",
+        code: item.slug,
+        amount: item.price,
+        label: item.title,
+        origin: window.location.origin,
+      },
+    })
+      .then((session) => {
+        window.location.href = session.url;
+      })
+      .catch(() => toast.error("Stripe did not open."));
+  }
+
+  function download(slug: string) {
+    void downloadElectivePdf({ data: slug })
+      .then((file) => {
+        const binary = atob(file.pdf);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name;
+        link.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => toast.error("The PDF did not open."));
+  }
 
   return (
     <main className="bg-ink text-paper">
@@ -23,79 +86,65 @@ function Classes() {
         icon="Sparkles"
         kicker="Single classes"
         title="Classes"
-        lede={`One session.
-Pay for that class.
-No monthly bill.`}
+        lede={`Single instruments
+of the same school.
+One class. Then you leave.`}
       />
       <section className="border-b border-paper/10 px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <SectionKicker>$35 · one price · sold one at a time</SectionKicker>
-          <h2 className="mt-3 font-display text-title uppercase">Take the class you want</h2>
+          <SectionKicker>Outside the degree · sold one at a time</SectionKicker>
+          <h2 className="mt-3 font-display text-title uppercase">Electives</h2>
           <p className="mt-3 max-w-xl font-mono text-[11px] normal-case leading-relaxed text-paper/70">
-            These electives sit outside the Scholarship. Every class on this page is $35. The full syllabus is the Academy, $33 a month.
+            These are single classes from the same metaphysical engineering program. A class is a tool, not a mood. It does not confer the degree, and it does not ordain. The full divinity school, including the clergy track, is the Academy.
           </p>
           <div className="mt-4">
             <Link to="/academy" className="text-[11px] uppercase tracking-wide text-lime">
               The syllabus is in the Academy
             </Link>
           </div>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {categories.map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setCat(id)}
-                className={cn(
-                  "border px-3 py-2 font-mono text-[10px] uppercase",
-                  cat === id ? "border-lime bg-lime text-ink" : "border-paper/20 text-paper/70",
-                )}
-              >
-                {id === "all" ? "All" : ELECTIVES.find((c) => c.category === id)?.categoryLabel}
-              </button>
-            ))}
-          </div>
-          <ul className="mt-8 divide-y divide-paper/10 border border-paper/10">
-            {shown.map((item) => (
-              <li key={item.slug} className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-mono text-[10px] uppercase text-lime">
-                    {item.categoryLabel} · {item.minutes} min · {item.instructor}
-                  </p>
-                  <h3 className="mt-1 font-display uppercase">{item.title}</h3>
-                  <p className="mt-2 max-w-2xl font-mono text-[11px] normal-case leading-relaxed text-paper/70">
-                    {item.description}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="lime"
-                  className="shrink-0"
-                  onClick={() => {
-                    if (!user) {
-                      window.location.href = "/login";
-                      return;
-                    }
-                    void startStripeCheckout({
-                      data: {
-                        kind: "elective",
-                        amount: item.price,
-                        label: item.title,
-                        origin: window.location.origin,
-                      },
-                    })
-                      .then((r) => {
-                        window.location.href = r.url;
-                      })
-                      .catch(() => {
-                        toast.message("Stripe is not connected. Opening Cash App.");
-                        window.open(`https://cash.app/$DMTTEMPLE/${item.price}`, "_blank", "noopener,noreferrer");
-                      });
-                  }}
-                >
-                  Buy · ${item.price}
-                </Button>
-              </li>
-            ))}
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            {ELECTIVES.map((item) => {
+              const shownOpen = open === item.slug;
+              const hasIt = owned.includes(item.slug.toUpperCase());
+              return (
+                <li key={item.slug} className="border border-paper/15 bg-black">
+                  <button
+                    type="button"
+                    aria-expanded={shownOpen}
+                    onClick={() => setOpen(shownOpen ? null : item.slug)}
+                    className="block w-full"
+                  >
+                    <img src={POSTERS[item.slug]} alt={item.title} className="w-full bg-black" />
+                  </button>
+                  {shownOpen ? (
+                    <div className="border-t border-paper/15 p-4 sm:p-5">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-lime">
+                        {item.categoryLabel} · {item.minutes} min · PDF
+                      </p>
+                      <h3 className="mt-2 font-display text-2xl uppercase leading-none">{item.title}</h3>
+                      <p className="mt-3 font-mono text-[13px] normal-case leading-relaxed text-paper/80">{item.description}</p>
+                      {hasIt ? (
+                        <button
+                          type="button"
+                          onClick={() => download(item.slug)}
+                          className="mt-5 inline-flex h-12 w-fit items-center justify-center bg-lime px-7 text-[13px] font-semibold uppercase tracking-[0.14em] text-ink"
+                        >
+                          Download the PDF
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => buy(item)}
+                          className="mt-5 inline-flex h-12 w-fit items-center justify-center bg-lime px-7 text-[13px] font-semibold uppercase tracking-[0.14em] text-ink"
+                        >
+                          Buy · ${item.price}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </section>

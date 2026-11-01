@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { OFFERINGS } from "@/lib/temple-content";
 import { shopSticker } from "@/lib/shop";
 import { scholarshipCourse } from "@/lib/scholarship";
+import { buildClassPdf } from "@/lib/class-pdf";
 import electives from "@/lib/electives.json";
 
 const PRICES = {
@@ -203,8 +204,8 @@ export async function applyStripeSession(session: Session) {
     const subscription = session.subscription || "";
     if (!existing[0]) {
       await sql`
-        insert into user_membership (id, user_id, tier, status, stripe_customer, stripe_subscription)
-        values (${crypto.randomUUID()}, ${userId}, ${tier}, ${"active"}, ${customer}, ${subscription})
+        insert into user_membership (id, user_id, tier, status, stripe_customer, stripe_subscription, billing_status, access_source)
+        values (${crypto.randomUUID()}, ${userId}, ${tier}, ${"active"}, ${customer}, ${subscription}, ${"paying"}, ${"subscription"})
       `;
     } else if (existing[0].role !== "chancellor") {
       await sql`
@@ -212,31 +213,47 @@ export async function applyStripeSession(session: Session) {
         set tier = ${tier},
             status = 'active',
             stripe_customer = ${customer},
-            stripe_subscription = ${subscription}
+            stripe_subscription = ${subscription},
+            billing_status = 'paying',
+            access_source = 'subscription'
         where user_id = ${userId}
       `;
     } else {
       await sql`
         update user_membership
-        set stripe_customer = ${customer}, stripe_subscription = ${subscription}
+        set stripe_customer = ${customer},
+            stripe_subscription = ${subscription},
+            billing_status = 'paying',
+            access_source = 'subscription'
         where user_id = ${userId}
       `;
     }
   }
-  await sql`
-    insert into stripe_payment (id, user_id, email, kind, label, amount, currency, status)
-    values (
-      ${session.id},
-      ${userId},
-      ${session.customer_email || ""},
-      ${kind},
-      ${label.slice(0, 160)},
-      ${Number(session.amount_total || 0)},
-      ${session.currency || "usd"},
-      ${"paid"}
-    )
-    on conflict (id) do nothing
-  `;
+  const flame = session.metadata?.flame === "1" || kind === "flame";
+  const membershipCents = kind === "membership" ? PRICES[tier as "initiate" | "patron"] || 0 : 0;
+  if (kind === "membership" && membershipCents) {
+    await sql`
+      insert into stripe_payment (id, user_id, email, kind, label, amount, currency, status)
+      values (${session.id}, ${userId}, ${session.customer_email || ""}, ${"membership"}, ${label.slice(0, 160)}, ${membershipCents}, ${session.currency || "usd"}, ${"paid"})
+      on conflict (id) do nothing
+    `;
+  }
+  if (flame) {
+    await sql`
+      insert into stripe_payment (id, user_id, email, kind, label, amount, currency, status)
+      values (${`${session.id}:flame`}, ${userId}, ${session.customer_email || ""}, ${"flame"}, ${"Pass the Flame"}, ${2200}, ${session.currency || "usd"}, ${"paid"})
+      on conflict (id) do nothing
+    `;
+    const { activateSponsorship } = await import("@/lib/flame");
+    await activateSponsorship({ userId, subscription: session.subscription || "", sessionId: session.id });
+  }
+  if (kind !== "membership" && !flame) {
+    await sql`
+      insert into stripe_payment (id, user_id, email, kind, label, amount, currency, status)
+      values (${session.id}, ${userId}, ${session.customer_email || ""}, ${kind}, ${label.slice(0, 160)}, ${Number(session.amount_total || 0)}, ${session.currency || "usd"}, ${"paid"})
+      on conflict (id) do nothing
+    `;
+  }
   const bought = paidClassCode(session);
   if (bought) {
     await sql`
@@ -256,13 +273,16 @@ export function paidClassCode(session: {
   const code = (session.metadata?.code || "").trim().toUpperCase();
   const cents = Number(session.amount_total || 0);
   if (kind !== "elective" || !code || !(cents >= 1000)) return "";
-  return scholarshipCourse(code) ? code : "";
+  if (scholarshipCourse(code)) return code;
+  const elective = electives.find((item) => item.slug.toUpperCase() === code);
+  if (elective && cents === Math.round(elective.price * 100)) return elective.slug.toUpperCase();
+  return "";
 }
 
 export const startStripeCheckout = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    (d: { kind: "membership" | "offering" | "elective" | "manual"; tier?: string; amount?: number; label: string; origin: string; code?: string }) =>
+    (d: { kind: "membership" | "offering" | "elective" | "manual" | "flame"; tier?: string; amount?: number; label: string; origin: string; code?: string; flame?: boolean }) =>
       d,
   )
   .handler(async ({ context, data }) => {
@@ -285,6 +305,10 @@ export const startStripeCheckout = createServerFn({ method: "POST" })
       cents = PRICES[data.tier];
       mode = "subscription";
       name = tier === "initiate" ? "Academy membership" : "Patron membership";
+    } else if (kind === "flame") {
+      cents = 2200;
+      mode = "subscription";
+      name = "Pass the Flame";
     } else if (kind === "offering") {
       cents = Math.round(Number(data.amount) || 0) * 100;
       if (!OFFERING_CENTS.has(cents)) throw new Error("Unknown offering");
@@ -292,6 +316,14 @@ export const startStripeCheckout = createServerFn({ method: "POST" })
       cents = Math.round(Number(data.amount) || 0) * 100;
       if (cents < 100) throw new Error("Name at least $1");
       name = "The Cosmic Operating System";
+    } else if (electives.some((item) => item.slug.toUpperCase() === requested)) {
+      const elective = electives.find((item) => item.slug.toUpperCase() === requested);
+      if (!elective) throw new Error("Unknown class");
+      cents = Math.round(elective.price * 100);
+      classCode = elective.slug.toUpperCase();
+      name = elective.title.slice(0, 80);
+      successPath = "/classes";
+      cancelPath = "/classes";
     } else if (requested) {
       const course = scholarshipCourse(requested);
       if (!course) throw new Error("Unknown class");
@@ -315,6 +347,7 @@ export const startStripeCheckout = createServerFn({ method: "POST" })
     body.set("metadata[tier]", tier);
     body.set("metadata[label]", name);
     if (classCode) body.set("metadata[code]", classCode);
+    if (kind === "flame" || (kind === "membership" && data.flame && tier === "initiate")) body.set("metadata[flame]", "1");
     if (user?.email) body.set("customer_email", user.email);
     body.set("managed_payments[enabled]", "false");
     body.set("line_items[0][quantity]", "1");
@@ -328,6 +361,14 @@ export const startStripeCheckout = createServerFn({ method: "POST" })
       body.set("line_items[0][price_data][product_data][name]", name);
       body.set("line_items[0][price_data][product_data][tax_code]", "txcd_10000000");
       if (mode === "subscription") body.set("line_items[0][price_data][recurring][interval]", "month");
+    }
+    if (kind === "membership" && data.flame && tier === "initiate") {
+      body.set("line_items[1][quantity]", "1");
+      body.set("line_items[1][price_data][currency]", "usd");
+      body.set("line_items[1][price_data][unit_amount]", "2200");
+      body.set("line_items[1][price_data][product_data][name]", "Pass the Flame");
+      body.set("line_items[1][price_data][product_data][tax_code]", "txcd_10000000");
+      body.set("line_items[1][price_data][recurring][interval]", "month");
     }
     const session = await stripeForm("checkout/sessions", body);
     if (!session.url) throw new Error("Stripe did not return a checkout link");
@@ -486,7 +527,7 @@ export async function syncStripeSubscription(subscriptionId: string, priceId: st
   const sql = await getSql();
   await sql`
     update user_membership
-    set tier = ${tier}, status = 'active'
+    set tier = ${tier}, status = 'active', billing_status = 'paying', access_source = 'subscription'
     where stripe_subscription = ${subscriptionId}
       and coalesce(role, 'member') <> 'chancellor'
   `;
@@ -497,7 +538,7 @@ export async function cancelStripeSubscription(subscriptionId: string) {
   const sql = await getSql();
   await sql`
     update user_membership
-    set tier = 'seeker', status = 'canceled', stripe_subscription = ''
+    set tier = 'seeker', status = 'canceled', stripe_subscription = '', billing_status = 'canceled'
     where stripe_subscription = ${subscriptionId}
       and coalesce(role, 'member') <> 'chancellor'
       and coalesce(scholarship, false) = false
@@ -527,6 +568,25 @@ export const ownedClassCodes = createServerFn({ method: "GET" })
       `;
     }
     return [...codes];
+  });
+
+export const downloadElectivePdf = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((code: string) => code)
+  .handler(async ({ context, data }) => {
+    const slug = data.trim().toUpperCase();
+    const item = electives.find((row) => row.slug.toUpperCase() === slug);
+    if (!item) throw new Error("Unknown class");
+    const sql = await getSql();
+    const [pass] = await sql<{ code: string }>`
+      select code from class_pass where user_id = ${context.userId} and upper(code) = ${slug} limit 1
+    `;
+    if (!pass) throw new Error("Buy the class first");
+    const pdf = buildClassPdf(item.title, item.description);
+    const bytes = new TextEncoder().encode(pdf);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return { name: `${item.slug}.pdf`, pdf: btoa(binary) };
   });
 
 export const myClassPurchases = createServerFn({ method: "GET" })
@@ -572,3 +632,42 @@ export async function stripeDesk() {
     payments,
   };
 }
+
+export const cancelFlame = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    const [row] = await sql<{ stripe_subscription: string }>`
+      select stripe_subscription from flame_sponsor
+      where user_id = ${context.userId} and status in ('active', 'past_due', 'paused')
+      limit 1
+    `;
+    if (!row?.stripe_subscription) throw new Error("No active sponsorship to cancel");
+    const [membership] = await sql<{ stripe_subscription: string }>`
+      select coalesce(stripe_subscription, '') as stripe_subscription from user_membership where user_id = ${context.userId} limit 1
+    `;
+    const same = membership?.stripe_subscription === row.stripe_subscription;
+    const key = await stripeSecret();
+    if (!key) throw new Error("Stripe is not connected");
+    if (same) {
+      const sub = (await stripeGet(`subscriptions/${row.stripe_subscription}`)) as {
+        items?: { data?: { id: string; price?: { unit_amount?: number } }[] };
+      };
+      const item = sub.items?.data?.find((entry) => entry.price?.unit_amount === 2200);
+      if (!item) throw new Error("The $22 item was not on the subscription. The Academy charge was left untouched.");
+      const res = await fetch(`https://api.stripe.com/v1/subscription_items/${item.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) throw new Error("Stripe did not remove the sponsorship");
+    } else {
+      const res = await fetch(`https://api.stripe.com/v1/subscriptions/${row.stripe_subscription}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) throw new Error("Stripe did not cancel the sponsorship");
+    }
+    const { endFlameBySubscription } = await import("@/lib/flame");
+    await endFlameBySubscription(row.stripe_subscription);
+    return { ok: true as const };
+  });

@@ -24,6 +24,34 @@ function publicShareHost() {
 const host = publicShareHost();
 const xBanner = host ? `https://${host}/x-banner.jpg` : "";
 
+const HEAL_CSS = `(function(){
+  function bust(){
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(function(link){
+      if(link.getAttribute("data-heal")) return;
+      link.setAttribute("data-heal","1");
+      var el=document.createElement("link");
+      el.rel="stylesheet";
+      el.href=link.href.split("?")[0]+"?r="+Date.now();
+      document.head.appendChild(el);
+    });
+  }
+  function painted(){
+    var node=document.querySelector(".bg-ink,.bg-black");
+    if(!node) return;
+    var bg=getComputedStyle(node).backgroundColor.replace(/\\s/g,"");
+    if(bg!=="rgb(5,5,5)" && bg!=="rgb(0,0,0)" && bg!=="rgba(0,0,0,1)") bust();
+  }
+  window.addEventListener("load", painted);
+  if(navigator.serviceWorker){
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(reg){ reg.unregister(); });
+    });
+  }
+  if(window.caches){
+    caches.keys().then(function(keys){ keys.forEach(function(key){ caches.delete(key); }); });
+  }
+})();`;
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -50,6 +78,7 @@ export const Route = createRootRoute({
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: HEAL_CSS }} />
       </head>
       <body>
         <PreviewHostBridge />

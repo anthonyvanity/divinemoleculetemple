@@ -1,4 +1,4 @@
-import { Check, Send } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -118,38 +118,45 @@ export function Newsletter() {
   }
 
   return (
-    <section className="relative overflow-hidden border-y border-pink/40 bg-night text-paper">
-      <Send
-        aria-hidden
-        className="pointer-events-none absolute -right-12 -top-8 size-[36vw] max-w-none text-pink/15"
-        strokeWidth={0.6}
-      />
-      <div className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:px-6">
-        <h2 className="font-display text-title uppercase leading-none">Follow the flame</h2>
-        <div className="mx-auto mt-6 h-px w-16 bg-pink" />
-        <p className="mt-6 text-sm uppercase tracking-wide text-paper/70">
-          New rites, sacred texts, academy releases, mission updates, and invitations—sent directly to your
-          sanctuary.
-        </p>
+    <section className="px-3 py-3 sm:px-6">
+      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl bg-[#ff2a9a] px-5 py-7 text-black sm:px-8 sm:py-8">
+        <img
+          src="/flame-plane.png"
+          alt=""
+          className="pointer-events-none absolute -right-4 top-8 w-[46%] max-w-[15rem] sm:-right-2 sm:top-6 sm:w-[40%]"
+        />
+        <div className="relative z-10 sm:pr-[38%]">
+          <h2 className="max-w-[12rem] font-display text-[clamp(2.1rem,6vw,3.2rem)] uppercase leading-[0.9]">
+            Follow
+            <br />
+            the flame
+          </h2>
+          <p className="mt-5 max-w-[16rem] font-sans text-[18px] normal-case leading-snug">
+            New rites, sacred texts, and invitations. Sent to your sanctuary.
+          </p>
+        </div>
         {subscribed ? (
-          <p className="mt-10 text-sm text-lime">You are on the wall.</p>
+          <p className="relative z-10 mt-6 text-sm font-medium">You are on the wall.</p>
         ) : (
-          <form onSubmit={submit} className="relative mx-auto mt-10 flex max-w-xl flex-col gap-3 sm:flex-row">
+          <form onSubmit={submit} className="relative z-10 mt-6 flex flex-col gap-3">
             <SpamFields company={spam.company} setCompany={spam.setCompany} />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="YOUR@EMAIL.COM"
-              className="h-16 flex-1 border-2 border-pink bg-transparent px-5 text-base uppercase tracking-wide text-paper outline-none placeholder:text-paper/35"
+              className="box-border h-14 min-h-14 w-full appearance-none rounded-full border-2 border-black bg-white px-5 text-base uppercase tracking-wide text-black outline-none placeholder:text-black/40"
               aria-label="Email"
             />
-            <Button type="submit" variant="pink" className="h-16 px-8">
-              Follow the flame
-            </Button>
+            <button
+              type="submit"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold uppercase tracking-[0.12em] text-white"
+            >
+              Follow the flame <span aria-hidden>↗</span>
+            </button>
           </form>
         )}
-        <p className="mt-4 text-[10px] uppercase tracking-wide text-paper/40">
+        <p className="relative z-10 mt-5 text-center text-[15px] normal-case text-black/55">
           No spam. No fluff. Only flame.
         </p>
       </div>

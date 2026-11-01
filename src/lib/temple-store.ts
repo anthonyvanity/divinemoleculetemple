@@ -69,6 +69,16 @@ type TempleState = {
   classNotes: Record<string, ClassNote[]>;
   bookmarks: Record<string, number>;
   lastClass: string;
+  deskSchedule: {
+    wake: string;
+    work: string;
+    study: string;
+    bed: string;
+    zone: string;
+    reminders: boolean;
+    setupSkipped: boolean;
+  };
+  deskPractice: Record<string, Record<string, boolean>>;
   setLastClass: (id: string) => void;
   setPath: (path: PathId | "none") => void;
   paid: boolean;
@@ -100,6 +110,8 @@ type TempleState = {
   setClassNote: (code: string, body: string) => void;
   removeClassNote: (code: string, id: string) => void;
   setBookmark: (work: string, page: number) => void;
+  setDeskSchedule: (schedule: TempleState["deskSchedule"]) => void;
+  setDeskPractice: (practice: TempleState["deskPractice"]) => void;
   applyAccount: (patch: Partial<TempleState>) => void;
 };
 
@@ -129,6 +141,16 @@ export const useTemple = create<TempleState>()(
       classNotes: {},
       bookmarks: {},
       lastClass: "",
+      deskSchedule: {
+        wake: "07:00",
+        work: "09:00",
+        study: "18:00",
+        bed: "22:00",
+        zone: "UTC",
+        reminders: false,
+        setupSkipped: false,
+      },
+      deskPractice: {},
       paid: false,
       role: "member",
       setPath: (path) => {
@@ -254,6 +276,8 @@ export const useTemple = create<TempleState>()(
         if ((get().bookmarks ?? {})[work] === page) return;
         set({ bookmarks: { ...(get().bookmarks ?? {}), [work]: page } });
       },
+      setDeskSchedule: (deskSchedule) => set({ deskSchedule }),
+      setDeskPractice: (deskPractice) => set({ deskPractice }),
       applyAccount: (patch) => set(patch),
     }),
     {
@@ -294,6 +318,8 @@ export function leaveTemple() {
     read: [],
     classNotes: {},
     bookmarks: {},
+    lastClass: "",
+    deskPractice: {},
     offerings: [],
     journal: "",
     rites: [],
